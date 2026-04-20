@@ -2,7 +2,7 @@
 
 A command-line tool to analyze weight tensors in diffusion model checkpoints and recommend a quantization format for each layer — `*KEEP*` (BF16), FP8, or NVFP4 — before running `convert_to_quant`. Designed to feed directly into [ComfyUI](https://github.com/comfyanonymous/ComfyUI) quantization workflows.
 
-Supported architectures: **Wan 2.1** and **Z-Image**.
+Supported architectures: **Wan 2.1** and **Z-Image Turbo**.
 
 ## Features
 
