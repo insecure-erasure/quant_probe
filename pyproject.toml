@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "quant-probe"
+version = "0.1.0"
+description = "Quantization sensitivity analysis for safetensors diffusion models"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "safetensors",
+]
+
+[project.scripts]
+quant-probe = "quant_probe.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["quant_probe*"]
