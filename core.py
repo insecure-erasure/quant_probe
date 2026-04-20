@@ -260,6 +260,7 @@ def _match_key(
     Try to match a safetensors key against all configured patterns.
 
     Returns (layer_type, block_idx, subgraph) or None if no match.
+    All patterns (main and refiner) capture the block index in group 1.
     Subgraph inference is delegated to cfg.infer_subgraph().
     """
     for layer_type, pattern in cfg.layer_patterns.items():
@@ -273,8 +274,8 @@ def _match_key(
         for layer_type, pattern in cfg.refiner_patterns.items():
             m = pattern.search(key)
             if m:
-                subgraph  = m.group(1)   # e.g. "context_refiner"
-                block_idx = int(m.group(2))
+                block_idx = int(m.group(1))
+                subgraph  = cfg.infer_subgraph(key)
                 return layer_type, block_idx, subgraph
 
     return None

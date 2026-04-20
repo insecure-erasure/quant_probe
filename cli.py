@@ -293,7 +293,7 @@ def main() -> None:
             total_refiner   = max(block_indices) + 1
             agg = core.aggregate(group, layer_type,
                                  core.block_range_label(block_indices, total_refiner),
-                                 "refiners")
+                                 group[0].subgraph)
             agg.recommendation, agg.reason = core.assign_recommendation(
                 agg.score, fp8_threshold, keep_threshold, fp8_min_score,
                 excess_kurtosis=agg.kurtosis_max,
@@ -328,8 +328,7 @@ def main() -> None:
                         continue
                     indices = [m.block_idx for m in subset]
                     label   = core.block_range_label(indices, total_blocks)
-                    agg     = core.aggregate(subset, layer_type, label,
-                                             subset[0].subgraph)
+                    agg     = core.aggregate(subset, layer_type, label, subset[0].subgraph)
                     agg.recommendation, agg.reason = core.assign_recommendation(
                         agg.score, fp8_threshold, keep_threshold, fp8_min_score,
                         excess_kurtosis=agg.kurtosis_max,
@@ -347,27 +346,26 @@ def main() -> None:
     refiner_detail_by_group: Dict = {}
 
     if refiner_metrics and cfg.refiner_detail_groups:
-        by_refiner_layer_sg: Dict = defaultdict(list)
+        by_refiner_layer: Dict = defaultdict(list)
         for m in refiner_metrics:
-            by_refiner_layer_sg[(m.layer_type, m.subgraph)].append(m)
+            by_refiner_layer[m.layer_type].append(m)
 
         for group_name, layer_types in cfg.refiner_detail_groups.items():
             group_rows = []
             for layer_type in layer_types:
-                for subgraph in cfg.refiner_subgraphs:
-                    group = by_refiner_layer_sg.get((layer_type, subgraph), [])
-                    if not group:
-                        continue
-                    block_indices = [m.block_idx for m in group]
-                    total_r       = max(block_indices) + 1
-                    label         = core.block_range_label(block_indices, total_r)
-                    agg           = core.aggregate(group, layer_type, label, subgraph)
-                    agg.recommendation, agg.reason = core.assign_recommendation(
-                        agg.score, fp8_threshold, keep_threshold, fp8_min_score,
-                        excess_kurtosis=agg.kurtosis_max,
-                        kurtosis_keep=kurtosis_keep,
-                    )
-                    group_rows.append(agg)
+                group = by_refiner_layer.get(layer_type, [])
+                if not group:
+                    continue
+                block_indices = [m.block_idx for m in group]
+                total_r       = max(block_indices) + 1
+                label         = core.block_range_label(block_indices, total_r)
+                agg           = core.aggregate(group, layer_type, label, group[0].subgraph)
+                agg.recommendation, agg.reason = core.assign_recommendation(
+                    agg.score, fp8_threshold, keep_threshold, fp8_min_score,
+                    excess_kurtosis=agg.kurtosis_max,
+                    kurtosis_keep=kurtosis_keep,
+                )
+                group_rows.append(agg)
 
             if group_rows:
                 refiner_detail_by_group[group_name] = group_rows

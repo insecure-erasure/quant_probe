@@ -42,20 +42,29 @@ _DETAIL_GROUPS = {
 # ---------------------------------------------------------------------------
 # Layer patterns — refiners (context_refiner.0-1, noise_refiner.0-1)
 # ---------------------------------------------------------------------------
-# Group 1: subgraph name ("context_refiner" | "noise_refiner")
-# Group 2: block index
+# Each subgraph has its own set of patterns so that layer_type reflects the
+# real key namespace (context_refiner.* / noise_refiner.*) rather than a
+# synthetic "refiner." prefix.  Group 1 captures the block index directly,
+# consistent with main block patterns.
 
 _REFINER_PATTERNS = {
-    "refiner.attention.qkv":   re.compile(r"(?:model\.diffusion_model\.)?(context_refiner|noise_refiner)\.(\d+)\.attention\.qkv\.weight$"),
-    "refiner.attention.out":   re.compile(r"(?:model\.diffusion_model\.)?(context_refiner|noise_refiner)\.(\d+)\.attention\.out\.weight$"),
-    "refiner.feed_forward.w1": re.compile(r"(?:model\.diffusion_model\.)?(context_refiner|noise_refiner)\.(\d+)\.feed_forward\.w1\.weight$"),
-    "refiner.feed_forward.w2": re.compile(r"(?:model\.diffusion_model\.)?(context_refiner|noise_refiner)\.(\d+)\.feed_forward\.w2\.weight$"),
-    "refiner.feed_forward.w3": re.compile(r"(?:model\.diffusion_model\.)?(context_refiner|noise_refiner)\.(\d+)\.feed_forward\.w3\.weight$"),
+    "context_refiner.attention.qkv":   re.compile(r"(?:model\.diffusion_model\.)?context_refiner\.(\d+)\.attention\.qkv\.weight$"),
+    "context_refiner.attention.out":   re.compile(r"(?:model\.diffusion_model\.)?context_refiner\.(\d+)\.attention\.out\.weight$"),
+    "context_refiner.feed_forward.w1": re.compile(r"(?:model\.diffusion_model\.)?context_refiner\.(\d+)\.feed_forward\.w1\.weight$"),
+    "context_refiner.feed_forward.w2": re.compile(r"(?:model\.diffusion_model\.)?context_refiner\.(\d+)\.feed_forward\.w2\.weight$"),
+    "context_refiner.feed_forward.w3": re.compile(r"(?:model\.diffusion_model\.)?context_refiner\.(\d+)\.feed_forward\.w3\.weight$"),
+    "noise_refiner.attention.qkv":     re.compile(r"(?:model\.diffusion_model\.)?noise_refiner\.(\d+)\.attention\.qkv\.weight$"),
+    "noise_refiner.attention.out":     re.compile(r"(?:model\.diffusion_model\.)?noise_refiner\.(\d+)\.attention\.out\.weight$"),
+    "noise_refiner.feed_forward.w1":   re.compile(r"(?:model\.diffusion_model\.)?noise_refiner\.(\d+)\.feed_forward\.w1\.weight$"),
+    "noise_refiner.feed_forward.w2":   re.compile(r"(?:model\.diffusion_model\.)?noise_refiner\.(\d+)\.feed_forward\.w2\.weight$"),
+    "noise_refiner.feed_forward.w3":   re.compile(r"(?:model\.diffusion_model\.)?noise_refiner\.(\d+)\.feed_forward\.w3\.weight$"),
 }
 
 _REFINER_DETAIL_GROUPS = {
-    "refiner.attention":    ["refiner.attention.qkv", "refiner.attention.out"],
-    "refiner.feed_forward": ["refiner.feed_forward.w1", "refiner.feed_forward.w2", "refiner.feed_forward.w3"],
+    "context_refiner.attention":    ["context_refiner.attention.qkv", "context_refiner.attention.out"],
+    "context_refiner.feed_forward": ["context_refiner.feed_forward.w1", "context_refiner.feed_forward.w2", "context_refiner.feed_forward.w3"],
+    "noise_refiner.attention":      ["noise_refiner.attention.qkv", "noise_refiner.attention.out"],
+    "noise_refiner.feed_forward":   ["noise_refiner.feed_forward.w1", "noise_refiner.feed_forward.w2", "noise_refiner.feed_forward.w3"],
 }
 
 # ---------------------------------------------------------------------------
@@ -122,12 +131,18 @@ _LAYER_TYPE_KEY_MAP = {
     "feed_forward.w2":    r"feed_forward\.w2\.weight",
     "feed_forward.w3":    r"feed_forward\.w3\.weight",
     "adaLN_modulation.0": r"adaLN_modulation\.0\.weight",
-    # Refiner layer types share the same key suffix as main blocks.
-    "refiner.attention.qkv":   r"attention\.qkv\.weight",
-    "refiner.attention.out":   r"attention\.out\.weight",
-    "refiner.feed_forward.w1": r"feed_forward\.w1\.weight",
-    "refiner.feed_forward.w2": r"feed_forward\.w2\.weight",
-    "refiner.feed_forward.w3": r"feed_forward\.w3\.weight",
+    # Refiner layer types — key suffix is identical to main blocks;
+    # the subgraph prefix is handled by build_block_path.
+    "context_refiner.attention.qkv":   r"attention\.qkv\.weight",
+    "context_refiner.attention.out":   r"attention\.out\.weight",
+    "context_refiner.feed_forward.w1": r"feed_forward\.w1\.weight",
+    "context_refiner.feed_forward.w2": r"feed_forward\.w2\.weight",
+    "context_refiner.feed_forward.w3": r"feed_forward\.w3\.weight",
+    "noise_refiner.attention.qkv":     r"attention\.qkv\.weight",
+    "noise_refiner.attention.out":     r"attention\.out\.weight",
+    "noise_refiner.feed_forward.w1":   r"feed_forward\.w1\.weight",
+    "noise_refiner.feed_forward.w2":   r"feed_forward\.w2\.weight",
+    "noise_refiner.feed_forward.w3":   r"feed_forward\.w3\.weight",
 }
 
 
