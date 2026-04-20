@@ -89,7 +89,7 @@ _HIGHPREC_EXCLUDED = [
 # ---------------------------------------------------------------------------
 
 _DEFAULT_ARGS = {
-    "fp8_percentile":   75.0,
+    "fp8_percentile":   50.0,
     "keep_percentile":  90.0,
     "kurtosis_keep":     8.0,
     # 0.0: the natural separation at ~0.525 is already captured by fp8_percentile;
