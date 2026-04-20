@@ -116,6 +116,7 @@ CONFIG = ArchitectureConfig(
                                  "self_attn.k",  "self_attn.q"],
     main_subgraphs            = _MAIN_SUBGRAPHS,
     refiner_subgraphs         = _REFINER_SUBGRAPHS,
+    spread_filter_main_only   = False,  # no refiners — field is inert
     infer_subgraph            = infer_subgraph,
     layer_type_to_key         = layer_type_to_key,
     build_block_path          = build_block_path,

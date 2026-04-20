@@ -523,15 +523,21 @@ def _blocks_to_alternation(indices: List[int]) -> str:
 
 
 def build_convert_to_quant_params(
-    all_detail_rows:      List[AggregatedMetrics],
-    all_metrics:          List[TensorMetrics],
-    min_group_spread:     float,
-    spread_filter_exempt: set,
+    all_detail_rows:        List[AggregatedMetrics],
+    all_metrics:            List[TensorMetrics],
+    min_group_spread:       float,
+    spread_filter_exempt:   set,
+    main_subgraphs:         set,
+    spread_filter_main_only: bool,
 ) -> Tuple[List[Tuple[str, List[int], str]], List[Tuple[str, List[int], str]]]:
     """
     Build FP8 and *KEEP* recommendations for convert_to_quant.
 
     Returns lists of (layer_type, block_indices, subgraph) tuples.
+
+    When spread_filter_main_only is True, refiner rows (subgraph not in
+    main_subgraphs) bypass the spread filter and are always resolved
+    tensor-by-tensor.
     """
     individual_rec: Dict[Tuple[str, int, str], str] = {
         (m.layer_type, m.block_idx, m.subgraph): m.recommendation for m in all_metrics
@@ -539,6 +545,10 @@ def build_convert_to_quant_params(
 
     by_layer_type: Dict[str, List[AggregatedMetrics]] = defaultdict(list)
     for row in all_detail_rows:
+        # When spread_filter_main_only, only main block rows contribute to
+        # the spread calculation.
+        if spread_filter_main_only and row.subgraph not in main_subgraphs:
+            continue
         by_layer_type[row.layer_type].append(row)
 
     low_spread_types: set = set()
@@ -557,7 +567,10 @@ def build_convert_to_quant_params(
         indices  = _block_range_to_indices(row.block_range)
         subgraph = row.subgraph
 
-        if row.layer_type in spread_filter_exempt:
+        # Refiner rows bypass spread filter — resolve tensor-by-tensor.
+        is_refiner = spread_filter_main_only and subgraph not in main_subgraphs
+
+        if row.layer_type in spread_filter_exempt or is_refiner:
             keep_idxs, fp8_idxs = [], []
             for idx in indices:
                 rec = individual_rec.get((row.layer_type, idx, subgraph), "NVFP4")
@@ -613,6 +626,24 @@ def _build_regex_for_entries(
     return "|".join(patterns)
 
 
+def print_refiner_spread_notice(cfg: ArchitectureConfig) -> None:
+    """Print notice explaining why refiners bypass the spread filter."""
+    print()
+    print(SEP)
+    print("  REFINER SUB-GRAPHS — SPREAD FILTER INACTIVE")
+    print(SEP)
+    print(f"  Refiner sub-graphs ({', '.join(sorted(cfg.refiner_subgraphs))}) have")
+    print(f"  too few blocks to provide meaningful positional spread signal.")
+    print(f"  Their recommendations reflect individual tensor analysis only.")
+    print()
+    print(f"  Use --zimage or --zimage_refiner in convert_to_quant to control")
+    print(f"  whether refiners are quantized at all:")
+    print(f"    --zimage          refiners are quantized (use --custom-layers /")
+    print(f"                      --exclude-layers output from this script)")
+    print(f"    --zimage_refiner  refiners kept in BF16 regardless")
+    print(SEP)
+
+
 def print_suggested_params(
     fp8_entries:      List[Tuple[str, List[int], str]],
     keep_entries:     List[Tuple[str, List[int], str]],
@@ -651,9 +682,11 @@ def print_suggested_params(
 # ---------------------------------------------------------------------------
 
 def build_effective_rec(
-    all_detail_rows:      List[AggregatedMetrics],
-    all_metrics:          List[TensorMetrics],
-    spread_filter_exempt: set,
+    all_detail_rows:         List[AggregatedMetrics],
+    all_metrics:             List[TensorMetrics],
+    spread_filter_exempt:    set,
+    main_subgraphs:          set,
+    spread_filter_main_only: bool,
 ) -> Tuple[Dict, Dict]:
     """Build (effective_rec, effective_reason) dicts keyed by (layer_type, block_idx, subgraph)."""
     individual_rec: Dict[Tuple[str, int, str], str] = {
@@ -666,7 +699,9 @@ def build_effective_rec(
         indices  = _block_range_to_indices(row.block_range)
         subgraph = row.subgraph
 
-        if row.layer_type in spread_filter_exempt:
+        is_refiner = spread_filter_main_only and subgraph not in main_subgraphs
+
+        if row.layer_type in spread_filter_exempt or is_refiner:
             for idx in indices:
                 k = (row.layer_type, idx, subgraph)
                 effective_rec[k] = individual_rec.get(k, "NVFP4")

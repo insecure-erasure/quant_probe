@@ -183,6 +183,11 @@ CONFIG = ArchitectureConfig(
     spread_filter_recommended = ["attention.qkv", "attention.out"],
     main_subgraphs            = _MAIN_SUBGRAPHS,
     refiner_subgraphs         = _REFINER_SUBGRAPHS,
+    # Refiners have only 2 blocks — insufficient positional spread signal.
+    # Spread filter is disabled for them; recommendations reflect individual
+    # tensor analysis. Use --zimage / --zimage_refiner in convert_to_quant
+    # to control whether refiners are quantized at all.
+    spread_filter_main_only   = True,
     infer_subgraph            = infer_subgraph,
     layer_type_to_key         = layer_type_to_key,
     build_block_path          = build_block_path,

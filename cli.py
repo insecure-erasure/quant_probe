@@ -379,6 +379,8 @@ def main() -> None:
         all_detail_rows, all_metrics,
         min_group_spread,
         spread_filter_exempt=exempt_set,
+        main_subgraphs=cfg.main_subgraphs,
+        spread_filter_main_only=cfg.spread_filter_main_only,
     )
 
     # Print detail tables
@@ -389,6 +391,9 @@ def main() -> None:
         for group_name, group_rows in refiner_detail_by_group.items():
             core.print_detail_table(group_name, group_rows,
                                     title_suffix="refiners — no positional classification")
+
+    if cfg.spread_filter_main_only and refiner_metrics:
+        core.print_refiner_spread_notice(cfg)
 
     core.print_suggested_params(
         fp8_entries, keep_entries,
@@ -402,6 +407,8 @@ def main() -> None:
     effective_rec, effective_reason = core.build_effective_rec(
         all_detail_rows, all_metrics,
         spread_filter_exempt=exempt_set,
+        main_subgraphs=cfg.main_subgraphs,
+        spread_filter_main_only=cfg.spread_filter_main_only,
     )
 
     if args.csv:

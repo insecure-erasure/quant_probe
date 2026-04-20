@@ -30,8 +30,8 @@ class ArchitectureConfig:
         Each pattern must capture the block index in group 1.
     refiner_patterns : Optional[Dict[str, re.Pattern]]
         Regex patterns for refiner sub-graphs (e.g. Z-Image context/noise
-        refiners). Each pattern must capture the subgraph name in group 1 and
-        the block index in group 2.  None if the architecture has no refiners.
+        refiners). Each pattern must capture the block index in group 1.
+        None if the architecture has no refiners.
     detail_groups : Dict[str, List[str]]
         Grouping of layer_type names for the detail tables (main blocks).
     refiner_detail_groups : Optional[Dict[str, List[str]]]
@@ -53,6 +53,11 @@ class ArchitectureConfig:
     refiner_subgraphs : Set[str]
         Subgraph identifiers that belong to refiner blocks.
         Empty set if the architecture has no refiners.
+    spread_filter_main_only : bool
+        If True, the spread filter is applied only to main transformer blocks.
+        Refiner rows are always resolved tensor-by-tensor, bypassing the spread
+        filter entirely.  Set to True for architectures where refiners have too
+        few blocks (typically 2) to provide meaningful positional spread signal.
     infer_subgraph : Callable[[str], str]
         Given a full safetensors key, returns the subgraph identifier string
         (e.g. "layers", "blocks", "context_refiner", "noise_refiner").
@@ -84,6 +89,7 @@ class ArchitectureConfig:
 
     main_subgraphs: Set[str]
     refiner_subgraphs: Set[str]
+    spread_filter_main_only: bool
 
     # Callable fields — architecture-specific logic injected by each module.
     infer_subgraph: Callable[[str], str]
