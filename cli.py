@@ -269,7 +269,7 @@ def main() -> None:
         block_indices = [m.block_idx for m in group]
         agg = core.aggregate(group, layer_type,
                              core.block_range_label(block_indices, total_blocks),
-                             "layers")
+                             group[0].subgraph)
         agg.recommendation, agg.reason = core.assign_recommendation(
             agg.score, fp8_threshold, keep_threshold, fp8_min_score,
             excess_kurtosis=agg.kurtosis_max,
