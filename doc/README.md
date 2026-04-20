@@ -2,7 +2,7 @@
 
 A command-line tool to analyze weight tensors in diffusion model checkpoints and recommend a quantization format for each layer — `*KEEP*` (BF16), FP8, or NVFP4 — before running `convert_to_quant`. Designed to feed directly into [ComfyUI](https://github.com/comfyanonymous/ComfyUI) quantization workflows.
 
-Supported architectures: **Wan 2.1** and **Z-Image / Z-Image Turbo**.
+Supported architectures: **Wan 2.1** and **Z-Image**.
 
 ## Features
 
@@ -83,7 +83,7 @@ quant-probe model.safetensors --model wan --lowram
 | Model | Flag |
 |---|---|
 | Wan 2.1 | `--wan` |
-| Z-Image base / Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
+| Z-Image Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
 
 The `--custom-layers` / `--exclude-layers` output from this script is compatible with both Z-Image flags.
 
@@ -97,7 +97,7 @@ The `--custom-layers` / `--exclude-layers` output from this script is compatible
 | `self_attn` | `k`, `v`, `q`, `o` |
 | `ffn` | `0`, `2` |
 
-### Z-Image / Z-Image Turbo
+### Z-Image
 
 Main blocks (`layers.*`):
 
@@ -185,9 +185,9 @@ Two additional guards override the score:
 
 ### Model-specific defaults
 
-| Parameter | Wan 2.1 | Z-Image Turbo |
+| Parameter | Wan 2.1 | Z-Image |
 |---|---|---|
-| `fp8-percentile` | 75.0 | 75.0 |
+| `fp8-percentile` | 75.0 | 50.0 |
 | `keep-percentile` | 90.0 | 90.0 |
 | `kurtosis-keep` | 8.0 | 8.0 |
 | `fp8-min-score` | 0.50 | 0.0 |
