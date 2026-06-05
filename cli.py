@@ -28,7 +28,7 @@ def _build_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Supported models:
-  wan     - Wan 2.1 video diffusion model
+  wan21   - Wan 2.1 video diffusion model
   zimage  - Z-Image / Z-Image Turbo image diffusion model
 
 Score composition:
@@ -40,7 +40,7 @@ Score composition:
 Thresholds and extreme block ranges are derived automatically from the model.
 
 Default thresholds are calibrated per model:
-  wan    - calibrated from Wan 2.1 14B score distribution
+  wan21  - calibrated from Wan 2.1 14B score distribution
   zimage - calibrated empirically from Z-Image Turbo score distribution
 """,
     )
@@ -79,7 +79,7 @@ Default thresholds are calibrated per model:
                             "Strongly recommended for attention Q/K layers due to DiT "
                             "QK^T sensitivity.  "
                             "Recommended values — "
-                            "wan: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  "
+                            "wan21: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  "
                             "zimage: attention.qkv attention.out"
                         ))
     parser.add_argument("--kurtosis-keep", type=float, default=None, metavar="K",

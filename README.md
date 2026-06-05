@@ -24,7 +24,7 @@ python -m quant_probe.cli model.safetensors --model zimage \
   --spread-filter-exempt attention.qkv attention.out
 
 # After pip install -e .
-quant-probe model.safetensors --model wan \
+quant-probe model.safetensors --model wan21 \
   --spread-filter-exempt cross_attn.k cross_attn.q self_attn.k self_attn.q
 ```
 
@@ -34,7 +34,7 @@ The output includes `--custom-layers` and `--exclude-layers` parameters ready to
 
 | Option | Default | Description |
 |---|---|---|
-| `--model` | required | Architecture: `wan` or `zimage` |
+| `--model` | required | Architecture: `wan21` or `zimage` |
 | `--fp8-percentile` | model-specific | Score percentile threshold for FP8 |
 | `--keep-percentile` | 90.0 | Score percentile threshold for \*KEEP\* |
 | `--spread-filter-exempt` | none | Layer types that bypass the spread filter |

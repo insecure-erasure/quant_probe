@@ -1,7 +1,7 @@
 """
 Formal contract (Protocol) that every architecture module must satisfy.
 
-Each architecture module (wan.py, zimage.py, ...) must expose a module-level
+Each architecture module (wan21.py, zimage.py, ...) must expose a module-level
 CONFIG dict whose value is an instance of ArchitectureConfig.
 
 registry.py collects these CONFIG objects and builds MODEL_CONFIGS.
@@ -20,7 +20,7 @@ class ArchitectureConfig:
     Fields
     ------
     name : str
-        Short identifier used on the CLI (e.g. "wan", "zimage").
+        Short identifier used on the CLI (e.g. "wan21", "zimage").
     description : str
         Human-readable model description shown in output headers.
     convert_flag : str

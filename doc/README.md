@@ -33,7 +33,7 @@ pip install torch safetensors
 
 ```bash
 # Without installing
-python -m quant_probe.cli model.safetensors --model wan
+python -m quant_probe.cli model.safetensors --model wan21
 
 # After pip install -e .
 quant-probe model.safetensors --model zimage
@@ -42,7 +42,7 @@ quant-probe model.safetensors --model zimage
 ### Export metrics to CSV
 
 ```bash
-python -m quant_probe.cli model.safetensors --model wan --csv results.csv
+python -m quant_probe.cli model.safetensors --model wan21 --csv results.csv
 ```
 
 ### Protect attention K and Q layers from group-level overrides
@@ -51,7 +51,7 @@ Cross-attention K and Q projections (Wan) and fused QKV/out projections (Z-Image
 
 ```bash
 # Wan 2.1
-quant-probe model.safetensors --model wan \
+quant-probe model.safetensors --model wan21 \
     --spread-filter-exempt cross_attn.k cross_attn.q self_attn.k self_attn.q
 
 # Z-Image
@@ -63,19 +63,19 @@ quant-probe model.safetensors --model zimage \
 
 ```bash
 # More conservative: protect more layers as FP8 instead of NVFP4
-quant-probe model.safetensors --model wan --fp8-percentile 60
+quant-probe model.safetensors --model wan21 --fp8-percentile 60
 
 # Less conservative: protect fewer layers in BF16
-quant-probe model.safetensors --model wan --keep-percentile 95
+quant-probe model.safetensors --model wan21 --keep-percentile 95
 ```
 
 ### Run on CPU or use low-RAM mode
 
 ```bash
-quant-probe model.safetensors --model wan --device cpu
+quant-probe model.safetensors --model wan21 --device cpu
 
 # Low-RAM: load tensors individually instead of mmap-ing the full file
-quant-probe model.safetensors --model wan --lowram
+quant-probe model.safetensors --model wan21 --lowram
 ```
 
 ## Compatibility with convert_to_quant
@@ -167,7 +167,7 @@ Two additional guards override the score:
 | Argument | Default | Description |
 |---|---|---|
 | `model_path` | *(required)* | Path to the BF16 safetensors model file |
-| `--model` | *(required)* | Architecture: `wan` or `zimage` |
+| `--model` | *(required)* | Architecture: `wan21` or `zimage` |
 | `--csv` | — | Export per-tensor metrics to a CSV file |
 | `--device` | auto | Computation device: `cpu` or `cuda` |
 | `--lowram` | off | Avoid full-file mmap; load tensors individually by byte offset |

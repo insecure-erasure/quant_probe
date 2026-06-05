@@ -101,7 +101,7 @@ def build_block_path(subgraph: str, block_alt: str, key_pattern: str) -> str:
 # ---------------------------------------------------------------------------
 
 CONFIG = ArchitectureConfig(
-    name                      = "wan",
+    name                      = "wan21",
     description               = "Wan 2.1 video diffusion model",
     convert_flag              = "--wan",
     layer_patterns            = _LAYER_PATTERNS,
