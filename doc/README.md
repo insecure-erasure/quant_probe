@@ -83,6 +83,7 @@ quant-probe model.safetensors --model wan21 --lowram
 | Model | Flag |
 |---|---|
 | Wan 2.1 | `--wan` |
+| Wan 2.2 | `--wan22` |
 | Z-Image Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
 
 The `--custom-layers` / `--exclude-layers` output from this script is compatible with both Z-Image flags.
@@ -167,7 +168,7 @@ Two additional guards override the score:
 | Argument | Default | Description |
 |---|---|---|
 | `model_path` | *(required)* | Path to the BF16 safetensors model file |
-| `--model` | *(required)* | Architecture: `wan21` or `zimage` |
+| `--model` | *(required)* | Architecture: `wan21`, `wan22` or `zimage` |
 | `--csv` | — | Export per-tensor metrics to a CSV file |
 | `--device` | auto | Computation device: `cpu` or `cuda` |
 | `--lowram` | off | Avoid full-file mmap; load tensors individually by byte offset |
@@ -185,13 +186,15 @@ Two additional guards override the score:
 
 ### Model-specific defaults
 
-| Parameter | Wan 2.1 | Z-Image |
-|---|---|---|
-| `fp8-percentile` | 75.0 | 50.0 |
-| `keep-percentile` | 90.0 | 90.0 |
-| `kurtosis-keep` | 8.0 | 8.0 |
-| `fp8-min-score` | 0.50 | 0.0 |
-| `min-group-spread` | 0.06 | 0.20 |
+| Parameter | Wan 2.1 | Wan 2.2 | Z-Image |
+|---|---|---|---|
+| `fp8-percentile` | 75.0 | 75.0* | 50.0 |
+| `keep-percentile` | 90.0 | 90.0* | 90.0 |
+| `kurtosis-keep` | 8.0 | 8.0* | 8.0 |
+| `fp8-min-score` | 0.50 | 0.50* | 0.0 |
+| `min-group-spread` | 0.06 | 0.06* | 0.20 |
+
+\* Cloned from Wan 2.1 — not yet recalibrated for Wan 2.2.
 
 ## Adding a new architecture
 

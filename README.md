@@ -34,7 +34,7 @@ The output includes `--custom-layers` and `--exclude-layers` parameters ready to
 
 | Option | Default | Description |
 |---|---|---|
-| `--model` | required | Architecture: `wan21` or `zimage` |
+| `--model` | required | Architecture: `wan21`, `wan22` or `zimage` |
 | `--fp8-percentile` | model-specific | Score percentile threshold for FP8 |
 | `--keep-percentile` | 90.0 | Score percentile threshold for \*KEEP\* |
 | `--spread-filter-exempt` | none | Layer types that bypass the spread filter |
@@ -48,6 +48,7 @@ The output includes `--custom-layers` and `--exclude-layers` parameters ready to
 | Model | Flag |
 |---|---|
 | Wan 2.1 | `--wan` |
+| Wan 2.2 | `--wan22` |
 | Z-Image base / Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
 
 The `--exclude-layers` output from this script is compatible with both Z-Image flags.
