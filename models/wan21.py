@@ -114,6 +114,7 @@ CONFIG = ArchitectureConfig(
     # amplifies leptokurtic distributions).
     spread_filter_recommended = ["cross_attn.k", "cross_attn.q",
                                  "self_attn.k",  "self_attn.q"],
+    exclude_layers_suffix     = None,  # placeholder — to be defined
     main_subgraphs            = _MAIN_SUBGRAPHS,
     refiner_subgraphs         = _REFINER_SUBGRAPHS,
     spread_filter_main_only   = False,  # no refiners — field is inert

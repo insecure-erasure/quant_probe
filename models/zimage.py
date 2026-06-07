@@ -181,6 +181,7 @@ CONFIG = ArchitectureConfig(
     # sensitive.  attention.out projects back to the residual stream and is
     # equally sensitive to quantization error in DiT architectures.
     spread_filter_recommended = ["attention.qkv", "attention.out"],
+    exclude_layers_suffix     = None,  # placeholder — to be defined
     main_subgraphs            = _MAIN_SUBGRAPHS,
     refiner_subgraphs         = _REFINER_SUBGRAPHS,
     # Refiners have only 2 blocks — insufficient positional spread signal.
