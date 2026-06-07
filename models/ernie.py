@@ -107,6 +107,16 @@ def build_block_path(subgraph: str, block_alt: str, key_pattern: str) -> str:
 # CONFIG instance
 # ---------------------------------------------------------------------------
 
+# Hardcoded exclude-layers suffix combining global highprec layers
+# and first-block attention/MLP projections that should always remain
+# in BF16, as determined by empirical testing.
+_EXCLUDE_LAYERS_SUFFIX = (
+    r"(time_embedding|adaLN_modulation|final_linear|final_norm|"
+    r"x_embedder|layers[.]0[.]self_attention|"
+    r"layers[.]0[.]mlp.gate_proj|layers[.]0[.]mlp[.]up_proj|text_proj)"
+)
+
+
 CONFIG = ArchitectureConfig(
     name                      = "ernie",
     description               = "ERNIE Image Turbo image diffusion model",
@@ -117,6 +127,7 @@ CONFIG = ArchitectureConfig(
     refiner_detail_groups     = None,
     default_args              = _DEFAULT_ARGS,
     highprec_excluded         = _HIGHPREC_EXCLUDED,
+    exclude_layers_suffix     = _EXCLUDE_LAYERS_SUFFIX,
     # Q/K projections: primary source of quantization error in DiT (QK^T
     # amplifies leptokurtic distributions).
     spread_filter_recommended = ["self_attn.q", "self_attn.k"],

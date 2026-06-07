@@ -669,8 +669,15 @@ def print_suggested_params(
     print()
 
     keep_regex = _build_regex_for_entries(keep_entries, cfg)
-    if keep_regex:
+    exclude_suffix = cfg.exclude_layers_suffix
+
+    if keep_regex and exclude_suffix:
+        combined = f"({keep_regex})|({exclude_suffix})"
+        print(f'  --exclude-layers "{combined}"')
+    elif keep_regex:
         print(f'  --exclude-layers "{keep_regex}"')
+    elif exclude_suffix:
+        print(f'  --exclude-layers "{exclude_suffix}"')
     else:
         print("  No additional --exclude-layers needed (model flag covers existing exclusions)")
 

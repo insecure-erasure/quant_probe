@@ -71,6 +71,12 @@ class ArchitectureConfig:
         Given (subgraph, block_alternation, key_pattern), returns the full
         regex string for one entry in the --custom-layers / --exclude-layers
         output (e.g. "layers.(0|1|2).attention.qkv.weight" as a raw regex).
+    exclude_layers_suffix : Optional[str]
+        Additional regex fragment to merge into the --exclude-layers output,
+        combined with analysis-based keep_entries via alternation (|).
+        Useful for architectures where certain layers (e.g. first block
+        attention) should always be kept in high precision regardless of
+        their score.  None if not needed.
     """
 
     name: str
@@ -95,3 +101,7 @@ class ArchitectureConfig:
     infer_subgraph: Callable[[str], str]
     layer_type_to_key: Callable[[str], str]
     build_block_path: Callable[[str, str, str], str]
+
+    # Optional suffix for architectures that need additional hardcoded
+    # exclude patterns beyond what analysis-based keep_entries produce.
+    exclude_layers_suffix: Optional[str] = None
