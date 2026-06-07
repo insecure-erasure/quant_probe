@@ -119,6 +119,8 @@ Each block has an identical structure.
 spread_filter_recommended = [
     "self_attn.q",  # QK^T sensitive — crucial for precision
     "self_attn.k",  # QK^T sensitive
+    "self_attn.v",  # High-score blocks demoted by spread filter
+    "ffn.down",     # Protects kurtosis_floor and FP8 blocks 32-35
 ]
 ```
 
@@ -157,7 +159,7 @@ default_args = {
     "keep_percentile":  90.0,   # default
     "kurtosis_keep":     8.0,   # default
     "fp8_min_score":    0.0,    # no artificial floor
-    "min_group_spread": 0.20,   # same scale as Z-Image
+    "min_group_spread": 0.10,   # relaxed from 0.20 to reduce spread filter overrides
 }
 ```
 

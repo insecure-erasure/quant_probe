@@ -63,7 +63,7 @@ _DEFAULT_ARGS = {
     "keep_percentile":  90.0,
     "kurtosis_keep":     8.0,
     "fp8_min_score":    0.0,
-    "min_group_spread": 0.20,
+    "min_group_spread": 0.10,
 }
 
 # ---------------------------------------------------------------------------
@@ -130,7 +130,8 @@ CONFIG = ArchitectureConfig(
     exclude_layers_suffix     = _EXCLUDE_LAYERS_SUFFIX,
     # Q/K projections: primary source of quantization error in DiT (QK^T
     # amplifies leptokurtic distributions).
-    spread_filter_recommended = ["self_attn.q", "self_attn.k"],
+    spread_filter_recommended = ["self_attn.q", "self_attn.k",
+                                 "self_attn.v", "ffn.down"],
     main_subgraphs            = _MAIN_SUBGRAPHS,
     refiner_subgraphs         = _REFINER_SUBGRAPHS,
     spread_filter_main_only   = False,  # no refiners — field is inert
