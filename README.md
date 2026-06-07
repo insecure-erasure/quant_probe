@@ -48,7 +48,7 @@ The output includes `--custom-layers` and `--exclude-layers` parameters ready to
 | Model | Flag |
 |---|---|
 | Wan 2.1 | `--wan` |
-| Wan 2.2 | `--wan22` |
+| Wan 2.2 | `--wan` |
 | Z-Image base / Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
 
 The `--exclude-layers` output from this script is compatible with both Z-Image flags.

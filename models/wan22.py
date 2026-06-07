@@ -49,7 +49,7 @@ _DETAIL_GROUPS = {
 # ---------------------------------------------------------------------------
 
 _DEFAULT_ARGS = {
-    "fp8_percentile":   75.0,
+    "fp8_percentile":   50.0,
     "keep_percentile":  90.0,
     "kurtosis_keep":     8.0,
     "fp8_min_score":    0.50,
@@ -103,7 +103,7 @@ def build_block_path(subgraph: str, block_alt: str, key_pattern: str) -> str:
 CONFIG = ArchitectureConfig(
     name                      = "wan22",
     description               = "Wan 2.2 I2V-A14B MoE video diffusion model",
-    convert_flag              = "--wan22",
+    convert_flag              = "--wan",
     layer_patterns            = _LAYER_PATTERNS,
     refiner_patterns          = None,
     detail_groups             = _DETAIL_GROUPS,

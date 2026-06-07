@@ -83,7 +83,7 @@ quant-probe model.safetensors --model wan21 --lowram
 | Model | Flag |
 |---|---|
 | Wan 2.1 | `--wan` |
-| Wan 2.2 | `--wan22` |
+| Wan 2.2 | `--wan` |
 | Z-Image Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
 
 The `--custom-layers` / `--exclude-layers` output from this script is compatible with both Z-Image flags.
@@ -188,13 +188,13 @@ Two additional guards override the score:
 
 | Parameter | Wan 2.1 | Wan 2.2 | Z-Image |
 |---|---|---|---|
-| `fp8-percentile` | 75.0 | 75.0* | 50.0 |
+| `fp8-percentile` | 75.0 | 50.0* | 50.0 |
 | `keep-percentile` | 90.0 | 90.0* | 90.0 |
 | `kurtosis-keep` | 8.0 | 8.0* | 8.0 |
 | `fp8-min-score` | 0.50 | 0.50* | 0.0 |
 | `min-group-spread` | 0.06 | 0.06* | 0.20 |
 
-\* Cloned from Wan 2.1 — not yet recalibrated for Wan 2.2.
+\* Wan 2.2 fp8_percentile set to 50 (empirical); other defaults cloned from Wan 2.1 — not yet recalibrated.
 
 ## Adding a new architecture
 
