@@ -8,6 +8,7 @@ contains no if/else branches on model names.
 
 import csv
 import json
+import re
 import struct
 import sys
 from collections import defaultdict
@@ -300,15 +301,23 @@ def analyze_model(
         with safe_open(model_path, framework="pt", device="cpu") as f:
             all_keys = list(f.keys())
 
+    # Compile exclude_layers_suffix if present — keys matching this
+    # pattern are skipped during analysis (not just in the output).
+    _exclude_re = re.compile(cfg.exclude_layers_suffix) if cfg.exclude_layers_suffix else None
+
     matching: List[Tuple[str, str, int, str]] = []
+    excluded_count = 0
     for key in all_keys:
         result = _match_key(key, cfg)
         if result:
             layer_type, block_idx, subgraph = result
+            if _exclude_re and _exclude_re.search(key):
+                excluded_count += 1
+                continue
             matching.append((key, layer_type, block_idx, subgraph))
 
     total = len(matching)
-    print(f"  Target tensors found: {total}")
+    print(f"  Target tensors found: {total}" + (f"  |  Skipped (excluded): {excluded_count}" if excluded_count else ""))
     print()
 
     if low_ram:
