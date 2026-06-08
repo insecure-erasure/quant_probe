@@ -189,9 +189,10 @@ default_args = {
 
 ```bash
 ctq -i ernie-image-turbo.safetensors \
-    -o ernie-image-turbo-fp8.safetensors \
+    -o ernie-image-turbo-nvfp4.safetensors \
+    --nvfp4 \
+    --save-quant-metadata \
     --comfy_quant \
-    --low-memory \
     --exclude-layers "(time_embedding|adaLN_modulation|final_linear|final_norm|x_embedder|layers[.]0[.]self_attention|layers[.]0[.]mlp.gate_proj|layers[.]0[.]mlp[.]up_proj|text_proj)"
 ```
 

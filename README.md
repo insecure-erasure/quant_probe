@@ -28,7 +28,7 @@ quant-probe model.safetensors --model wan21 \
   --spread-filter-exempt cross_attn.k cross_attn.q self_attn.k self_attn.q
 ```
 
-The output includes `--custom-layers` and `--exclude-layers` parameters ready to pass to `convert_to_quant`.
+The output includes a ready-to-use `ctq` command with `--custom-layers` and `--exclude-layers` parameters for NVFP4 quantization, plus metadata and ComfyUI flags.
 
 ## Key options
 

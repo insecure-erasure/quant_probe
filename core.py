@@ -653,6 +653,13 @@ def print_refiner_spread_notice(cfg: ArchitectureConfig) -> None:
     print(SEP)
 
 
+def _build_model_flag(convert_flag: str) -> str:
+    """Extract the first model-specific flag from convert_flag for use in ctq."""
+    if not convert_flag:
+        return ""
+    return convert_flag.split("/")[0].strip().split()[0]
+
+
 def print_suggested_params(
     fp8_entries:      List[Tuple[str, List[int], str]],
     keep_entries:     List[Tuple[str, List[int], str]],
@@ -662,34 +669,78 @@ def print_suggested_params(
 ) -> None:
     print()
     print(SEP)
-    print("  SUGGESTED convert_to_quant PARAMETERS")
+    print("  SUGGESTED convert_to_quant COMMAND")
     print(SEP)
-    print(f"  Model: {cfg.name}  |  convert_to_quant flag: {cfg.convert_flag}")
+    print(f"  Model: {cfg.name}")
     print(f"  Filters active — FP8 min score: {fp8_min_score}  |  min group spread: {min_group_spread}")
     print()
 
     fp8_regex = _build_regex_for_entries(fp8_entries, cfg)
-    if fp8_regex:
-        print(f'  --custom-layers "{fp8_regex}"')
-        print( "  --custom-type fp8")
-    else:
-        print("  No layers recommended as FP8 (all NVFP4, or filtered by min score / spread)")
-
-    print()
-
     keep_regex = _build_regex_for_entries(keep_entries, cfg)
     exclude_suffix = cfg.exclude_layers_suffix
 
     if keep_regex and exclude_suffix:
         combined = f"({keep_regex})|({exclude_suffix})"
-        print(f'  --exclude-layers "{combined}"')
     elif keep_regex:
-        print(f'  --exclude-layers "{keep_regex}"')
+        combined = keep_regex
     elif exclude_suffix:
-        print(f'  --exclude-layers "{exclude_suffix}"')
+        combined = exclude_suffix
     else:
-        print("  No additional --exclude-layers needed (model flag covers existing exclusions)")
+        combined = None
 
+    # Build the recommended ctq command
+    ctq_args = [
+        "ctq",
+        "-i model.safetensors",
+        "-o model-nvfp4.safetensors",
+        "--nvfp4",
+        "--save-quant-metadata",
+        "--comfy_quant",
+    ]
+
+    model_flag = _build_model_flag(cfg.convert_flag)
+    if model_flag:
+        ctq_args.append(model_flag)
+
+    if fp8_regex:
+        ctq_args.append(f'--custom-layers "{fp8_regex}"')
+        ctq_args.append("--custom-type fp8")
+
+    if combined:
+        ctq_args.append(f'--exclude-layers "{combined}"')
+
+    # Print the full command with line continuations
+    print("  " + " \\\n  ".join(ctq_args))
+
+    # Keep the individual parameters as reference
+    print()
+    print(f"  {'─' * 60}")
+    print("  Individual parameters (for reference):")
+    print()
+
+    if fp8_regex:
+        print(f'    --custom-layers  "{fp8_regex}"')
+        print( "    --custom-type    fp8")
+    else:
+        print("    --custom-layers  (none — all layers at NVFP4 or filtered)")
+
+    if combined:
+        print(f'    --exclude-layers "{combined}"')
+    else:
+        print("    --exclude-layers (none — model flag covers existing exclusions)")
+
+    print()
+    print(f"  {'─' * 60}")
+    print("  Notes:")
+    print("    --nvfp4              Quantize non-sensitive layers to NVFP4 (4-bit)")
+    print("    --custom-type fp8    Override specific layers to FP8")
+    print("    --exclude-layers     Keep sensitive layers in BF16")
+    print("    --save-quant-metadata  Store quantization params in safetensors header")
+    print("    --comfy_quant        Add ComfyUI-compatible layer metadata")
+
+    print()
+    print(f"  Hardware note: NVFP4 requires Blackwell GPUs (CUDA 13.0+, PyTorch 2.10+).")
+    print(f"  For Ada/Hopper GPUs, replace --nvfp4 with --int8 or omit for FP8 default.")
     print(SEP)
 
 
