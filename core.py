@@ -628,6 +628,26 @@ def build_convert_to_quant_params(
             if fp8_idxs:
                 fp8_entries.append((row.layer_type, fp8_idxs, subgraph))
 
+    # Safety net: a tensor whose own score earned *KEEP* must never end up at
+    # the base format, no matter which group verdict (or spread demotion) applied
+    # to it.  The per-branch handling above covers the FP8 and *KEEP* groups; this
+    # pass catches the tensors that fell through to NVFP4.
+    already_kept = {(lt, idx, sg) for lt, idxs, sg in keep_entries for idx in idxs}
+    rescue: Dict[Tuple[str, str], List[int]] = defaultdict(list)
+    for m in all_metrics:
+        if m.recommendation == "*KEEP*" and (m.layer_type, m.block_idx, m.subgraph) not in already_kept:
+            rescue[(m.layer_type, m.subgraph)].append(m.block_idx)
+    if rescue:
+        rescued = set()
+        for (layer_type, subgraph), idxs in rescue.items():
+            keep_entries.append((layer_type, sorted(idxs), subgraph))
+            rescued.update((layer_type, i, subgraph) for i in idxs)
+        fp8_entries = [
+            (layer_type, [i for i in idxs if (layer_type, i, subgraph) not in rescued], subgraph)
+            for layer_type, idxs, subgraph in fp8_entries
+        ]
+        fp8_entries = [entry for entry in fp8_entries if entry[1]]
+
     return fp8_entries, keep_entries
 
 
@@ -843,6 +863,16 @@ def build_effective_rec(
                         effective_reason[k] = "group_fp8_promotion"
                     else:
                         effective_reason[k] = "group_spread_demotion"
+
+    # Mirror the safety net in build_convert_to_quant_params so the CSV and the
+    # size estimate agree with the emitted command.
+    for m in all_metrics:
+        if m.recommendation != "*KEEP*":
+            continue
+        k = (m.layer_type, m.block_idx, m.subgraph)
+        if effective_rec.get(k) != "*KEEP*":
+            effective_rec[k]    = "*KEEP*"
+            effective_reason[k] = "group_keep_preserved"
 
     return effective_rec, effective_reason
 
