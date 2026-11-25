@@ -162,6 +162,7 @@ Two additional guards override the score:
 | `kurtosis_floor` | `*KEEP*` forced because excess kurtosis ≥ `kurtosis-keep` |
 | `group_keep_resolved` | Tensor was individually `*KEEP*` but demoted during per-tensor resolution within a `*KEEP*` group |
 | `group_fp8_promotion` | Tensor was individually NVFP4 but carried up to FP8 by its block-position group |
+| `group_keep_preserved` | Group verdict was FP8, but the tensor's own score earned `*KEEP*`, so it kept BF16 |
 | `group_spread_demotion` | Tensor was individually FP8 or `*KEEP*` but brought down by the group's spread filter result |
 | `spread_demotion` | FP8→NVFP4 or `*KEEP*`→FP8 by spread filter directly |
 
@@ -174,6 +175,8 @@ Two additional guards override the score:
 | `--csv` | — | Export per-tensor metrics to a CSV file |
 | `--device` | auto | Computation device: `cpu` or `cuda` |
 | `--lowram` | off | Avoid full-file mmap; load tensors individually by byte offset |
+| `--base-format` | `nvfp4` | Format of the least-sensitive tier: `nvfp4`, `mxfp8`, `int8` or `fp8` (no flag). Emitted as the main `ctq` flag |
+| `--sensitive-format` | `fp8` | Format of the sensitive tier, emitted as `--custom-type`. Set it equal to `--base-format` for a uniform quantization that keeps only the BF16 protection |
 | `--fp8-percentile` | model-specific | Score percentile threshold for FP8 recommendation |
 | `--keep-percentile` | 90 | Score percentile threshold for `*KEEP*` recommendation |
 | `--fp8-min-score` | model-specific | Absolute minimum score required for FP8; set to 0.0 to disable |

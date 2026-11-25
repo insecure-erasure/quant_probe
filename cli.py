@@ -91,6 +91,20 @@ Default thresholds are calibrated per model:
                         help="Hard floor on excess kurtosis: forces *KEEP* (default: model-specific).")
     parser.add_argument("--lowram", action="store_true", default=False,
                         help="Avoid mmap-ing the full model file.")
+    parser.add_argument("--base-format", type=str, default="nvfp4",
+                        choices=["nvfp4", "mxfp8", "int8", "fp8"],
+                        help=(
+                            "Format for the least-sensitive tier — emitted as the main "
+                            "convert_to_quant flag and used for the output filename "
+                            "(default: nvfp4). Use 'fp8' to emit no flag, since FP8 is "
+                            "ctq's default."))
+    parser.add_argument("--sensitive-format", type=str, default="fp8",
+                        choices=["fp8", "mxfp8", "int8", "nvfp4"],
+                        help=(
+                            "Format for the sensitive tier — emitted as --custom-type "
+                            "(default: fp8). If it equals --base-format the custom-layers "
+                            "block is omitted, which gives a uniform quantization plus "
+                            "BF16 protection."))
     return parser
 
 
@@ -404,6 +418,8 @@ def main() -> None:
         fp8_entries, keep_entries,
         fp8_min_score, min_group_spread,
         cfg,
+        base_format      = args.base_format,
+        sensitive_format = args.sensitive_format,
     )
 
     # -----------------------------------------------------------------------
@@ -420,8 +436,30 @@ def main() -> None:
         core.export_csv(all_metrics, args.csv, effective_rec, effective_reason)
 
     original_bytes = model_path.stat().st_size
-    size_est       = core.estimate_output_size(all_metrics, effective_rec, original_bytes)
-    core.print_size_estimate(size_est)
+    tier_bpp       = core.tier_bytes_per_weight(args.base_format, args.sensitive_format)
+    size_est       = core.estimate_output_size(
+        all_metrics, effective_rec, original_bytes, bpp=tier_bpp
+    )
+
+    # Which tier is non-empty decides whether the alternative figure is
+    # meaningful.  Both are printed because the analysis is identical for
+    # every format — only the bytes-per-weight constant differs.
+    alt = None
+    if size_est["per_format_counts"]["FP8"]:
+        other     = "fp8" if args.sensitive_format != "fp8" else "mxfp8"
+        alt_bpp   = dict(tier_bpp)
+        alt_bpp["FP8"] = core.FORMAT_BYTES_PER_WEIGHT[other]
+        alt_est   = core.estimate_output_size(
+            all_metrics, effective_rec, original_bytes, bpp=alt_bpp
+        )
+        alt = (f"Total if the sensitive tier is {other.upper()}",
+               alt_est["total_estimated_bytes"])
+
+    core.print_size_estimate(
+        size_est,
+        tier_labels = {"FP8": args.sensitive_format, "NVFP4": args.base_format},
+        alt         = alt,
+    )
 
 
 if __name__ == "__main__":

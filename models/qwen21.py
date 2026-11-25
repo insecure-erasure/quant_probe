@@ -161,7 +161,7 @@ CONFIG = ArchitectureConfig(
     # amplifies leptokurtic distributions).  In 2.1 Q and K each carry an
     # RMSNorm (norm_q/norm_k), which does not shield the projections from
     # quantization error — the norm is applied after the projection.
-    spread_filter_recommended = ["attn.q", "attn.k"],
+    spread_filter_recommended = ["attn.q", "attn.k", "attn.v", "attn.o"],
     main_subgraphs            = _MAIN_SUBGRAPHS,
     refiner_subgraphs         = _REFINER_SUBGRAPHS,
     spread_filter_main_only   = False,  # no refiners — field is inert

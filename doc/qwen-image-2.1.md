@@ -125,12 +125,21 @@ relies on its own `--exclude-layers`:
 ```
 
 ```bash
-ctq -i qwen_image_2.1_bf16.safetensors \
-    -o qwen_image_2.1-nvfp4.safetensors \
-    --nvfp4 --save-quant-metadata --comfy_quant \
-    --custom-layers "<keep regex de quant_probe>" --custom-type fp8 \
-    --exclude-layers "<regex de arriba + keep>"
+# mixed: NVFP4 base, MXFP8 for the sensitive tier
+quant-probe model.safetensors --model qwen21 \
+    --base-format nvfp4 --sensitive-format mxfp8
+
+# uniform MXFP8: only the BF16 protection applies
+quant-probe model.safetensors --model qwen21 --base-format mxfp8
 ```
+
+The emitted command is ready to run; `--base-format` and `--sensitive-format`
+map onto the main `ctq` flag and `--custom-type` respectively. When both are
+equal the `--custom-layers` block is dropped, because everything that is not
+excluded already receives the base format.
+
+MXFP8 costs 8.25 bits per weight (E4M3 data plus an E8M0 scale every 32
+weights), not 8.0, so the size table uses 1.03125 bytes per weight for it.
 
 ### Reference: what Comfy-Org shipped
 
