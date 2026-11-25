@@ -969,6 +969,22 @@ FORMAT_CTQ_FLAG: Dict[str, str] = {
 _BLACKWELL_ONLY: Tuple[str, ...] = ("nvfp4", "mxfp8")
 
 
+def resolve_sensitive_format(base_format: str, sensitive_format: Optional[str]) -> str:
+    """
+    Derive the sensitive tier from the base when it was not given explicitly.
+
+    A base that already stores 8 bits per weight (mxfp8, int8, fp8) has no room
+    for a more precise tier, so it stays uniform.  NVFP4 is the only 4-bit base
+    and its historical companion is plain FP8.
+
+    An explicit value is always honoured; print_suggested_params warns when it
+    ends up being no more precise than the base.
+    """
+    if sensitive_format:
+        return sensitive_format
+    return "fp8" if base_format == "nvfp4" else base_format
+
+
 def tier_bytes_per_weight(
     base_format:      str = "nvfp4",
     sensitive_format: str = "fp8",

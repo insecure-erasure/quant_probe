@@ -176,7 +176,7 @@ Two additional guards override the score:
 | `--device` | auto | Computation device: `cpu` or `cuda` |
 | `--lowram` | off | Avoid full-file mmap; load tensors individually by byte offset |
 | `--base-format` | `nvfp4` | Format of the least-sensitive tier: `nvfp4`, `mxfp8`, `int8` or `fp8` (no flag). Emitted as the main `ctq` flag |
-| `--sensitive-format` | `fp8` | Format of the sensitive tier, emitted as `--custom-type`. Set it equal to `--base-format` for a uniform quantization that keeps only the BF16 protection |
+| `--sensitive-format` | derived | Format of the sensitive tier, emitted as `--custom-type`. When unset it is FP8 if the base is `nvfp4`, otherwise the base format itself — so `--base-format mxfp8` alone gives a uniform MXFP8 build with no `--custom-layers` block |
 | `--fp8-percentile` | model-specific | Score percentile threshold for FP8 recommendation |
 | `--keep-percentile` | 90 | Score percentile threshold for `*KEEP*` recommendation |
 | `--fp8-min-score` | model-specific | Absolute minimum score required for FP8; set to 0.0 to disable |
