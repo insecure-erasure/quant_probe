@@ -2,7 +2,7 @@
 
 A command-line tool to analyze weight tensors in diffusion model checkpoints and recommend a quantization format for each layer — `*KEEP*` (BF16), FP8, or NVFP4 — then outputs a complete `ctq` command with `--nvfp4`, `--save-quant-metadata`, `--comfy_quant`, and model-specific flags. Designed to feed directly into [ComfyUI](https://github.com/comfyanonymous/ComfyUI) quantization workflows.
 
-Supported architectures: **Wan 2.1** and **Z-Image Turbo**.
+Supported architectures: **Wan 2.1**, **Wan 2.2**, **Z-Image Turbo**, **ERNIE Image Turbo** and **Qwen-Image 2.1**.
 
 ## Features
 
@@ -85,6 +85,8 @@ quant-probe model.safetensors --model wan21 --lowram
 | Wan 2.1 | `--wan` |
 | Wan 2.2 | `--wan` |
 | Z-Image Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
+| ERNIE Image Turbo | *(none — `--exclude-layers` is self-contained)* |
+| Qwen-Image 2.1 | *(none — `--exclude-layers` is self-contained; `--qwen` is v1-only)* |
 
 The `--custom-layers` / `--exclude-layers` output from this script is compatible with both Z-Image flags.
 
@@ -168,7 +170,7 @@ Two additional guards override the score:
 | Argument | Default | Description |
 |---|---|---|
 | `model_path` | *(required)* | Path to the BF16 safetensors model file |
-| `--model` | *(required)* | Architecture: `wan21`, `wan22` or `zimage` |
+| `--model` | *(required)* | Architecture: `wan21`, `wan22`, `zimage`, `ernie` or `qwen21` |
 | `--csv` | — | Export per-tensor metrics to a CSV file |
 | `--device` | auto | Computation device: `cpu` or `cuda` |
 | `--lowram` | off | Avoid full-file mmap; load tensors individually by byte offset |
@@ -186,15 +188,19 @@ Two additional guards override the score:
 
 ### Model-specific defaults
 
-| Parameter | Wan 2.1 | Wan 2.2 | Z-Image |
-|---|---|---|---|
-| `fp8-percentile` | 75.0 | 50.0* | 50.0 |
-| `keep-percentile` | 90.0 | 90.0* | 90.0 |
-| `kurtosis-keep` | 8.0 | 8.0* | 8.0 |
-| `fp8-min-score` | 0.50 | 0.50* | 0.0 |
-| `min-group-spread` | 0.06 | 0.06* | 0.20 |
+| Parameter | Wan 2.1 | Wan 2.2 | Z-Image | ERNIE | Qwen-Image 2.1 |
+|---|---|---|---|---|---|
+| `fp8-percentile` | 75.0 | 50.0* | 50.0 | 50.0* | 50.0* |
+| `keep-percentile` | 90.0 | 90.0* | 90.0 | 90.0* | 90.0* |
+| `kurtosis-keep` | 8.0 | 8.0* | 8.0 | 8.0* | 8.0* |
+| `fp8-min-score` | 0.50 | 0.50* | 0.0 | 0.0* | 0.0* |
+| `min-group-spread` | 0.06 | 0.06* | 0.20 | 0.20* | 0.20* |
 
 \* Wan 2.2 fp8_percentile set to 50 (empirical); other defaults cloned from Wan 2.1 — not yet recalibrated.
+\* ERNIE and Qwen-Image 2.1 defaults are cloned from Z-Image — not yet recalibrated.
+
+See `doc/qwen-image-2.1.md` for the verified layer inventory of the Comfy-Org
+BF16 repack and why `--qwen` must not be used with it.
 
 ## Adding a new architecture
 

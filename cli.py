@@ -31,6 +31,8 @@ Supported models:
   wan21   - Wan 2.1 video diffusion model
   wan22   - Wan 2.2 I2V-A14B MoE video diffusion model (high / low)
   zimage  - Z-Image / Z-Image Turbo image diffusion model
+  ernie   - ERNIE Image Turbo image diffusion model
+  qwen21  - Qwen-Image 2.1 image diffusion model (ComfyUI single-file)
 
 Score composition:
   - Excess kurtosis (IQR-normalized globally)       default weight: 0.6
@@ -82,7 +84,8 @@ Default thresholds are calibrated per model:
                             "QK^T sensitivity.  "
                             "Recommended values — "
                             "wan21: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  wan22: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  "
-                            "zimage: attention.qkv attention.out"
+                            "zimage: attention.qkv attention.out  |  "
+                            "qwen21: attn.q attn.k"
                         ))
     parser.add_argument("--kurtosis-keep", type=float, default=None, metavar="K",
                         help="Hard floor on excess kurtosis: forces *KEEP* (default: model-specific).")

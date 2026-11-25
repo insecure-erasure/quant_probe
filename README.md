@@ -2,7 +2,7 @@
 
 Quantization sensitivity analysis for safetensors diffusion models. Analyzes weight tensors to recommend per-layer quantization format (BF16 / FP8 / NVFP4) and generates ready-to-use parameters for [convert_to_quant](https://github.com/silveroxides/convert_to_quant).
 
-Supported architectures: **Wan 2.1** and **Z-Image Turbo**.
+Supported architectures: **Wan 2.1**, **Wan 2.2**, **Z-Image Turbo**, **ERNIE Image Turbo** and **Qwen-Image 2.1**.
 
 ## How it works
 
@@ -34,7 +34,7 @@ The output includes a ready-to-use `ctq` command with `--custom-layers` and `--e
 
 | Option | Default | Description |
 |---|---|---|
-| `--model` | required | Architecture: `wan21`, `wan22` or `zimage` |
+| `--model` | required | Architecture: `wan21`, `wan22`, `zimage`, `ernie` or `qwen21` |
 | `--fp8-percentile` | model-specific | Score percentile threshold for FP8 |
 | `--keep-percentile` | 90.0 | Score percentile threshold for \*KEEP\* |
 | `--spread-filter-exempt` | none | Layer types that bypass the spread filter |
@@ -50,6 +50,8 @@ The output includes a ready-to-use `ctq` command with `--custom-layers` and `--e
 | Wan 2.1 | `--wan` |
 | Wan 2.2 | `--wan` |
 | Z-Image base / Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
+| ERNIE Image Turbo | *(none — `--exclude-layers` is self-contained)* |
+| Qwen-Image 2.1 | *(none — `--exclude-layers` is self-contained; `--qwen` is v1-only)* |
 
 The `--exclude-layers` output from this script is compatible with both Z-Image flags.
 
