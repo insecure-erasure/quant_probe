@@ -1030,10 +1030,21 @@ def print_size_estimate(
     print("  ESTIMATED OUTPUT FILE SIZE")
     print(SEP)
     print(f"  Tensors in scope ({n_scope})  —  original BF16: {gb(est['in_scope_original_bytes'])}")
-    for fmt in ("*KEEP*", "FP8", "NVFP4"):
-        emitted = tier_labels.get(fmt, fmt)
-        label   = f"    {fmt} ({'BF16' if fmt == '*KEEP*' else emitted.upper()})"
-        print(f"  {label:<38}  {pfc[fmt]:>4} tensors  →  {gb(pfb[fmt]):>9}")
+    # When both tiers emit the same format the split between them is not a
+    # decision any more — collapse it, otherwise the table implies a
+    # distinction that does not exist.
+    merged = tier_labels.get("FP8") is not None and \
+             tier_labels.get("FP8") == tier_labels.get("NVFP4")
+    if merged:
+        n_t = pfc["FP8"] + pfc["NVFP4"]
+        b_t = pfb["FP8"] + pfb["NVFP4"]
+        label = f"    {tier_labels['NVFP4'].upper()} (uniform) — all non-BF16 layers"
+        print(f"  {label:<38}  {n_t:>4} tensors  →  {gb(b_t):>9}")
+    else:
+        for fmt in ("*KEEP*", "FP8", "NVFP4"):
+            emitted = tier_labels.get(fmt, fmt)
+            label   = f"    {fmt} ({'BF16' if fmt == '*KEEP*' else emitted.upper()})"
+            print(f"  {label:<38}  {pfc[fmt]:>4} tensors  →  {gb(pfb[fmt]):>9}")
     print(f"  {'  Subtotal after quantization':<38}  {gb(est['in_scope_estimated_bytes']):>9}")
     print(f"  {'Tensors out of scope (BF16, unchanged)':<38}  {gb(est['out_of_scope_bytes']):>9}")
     print(f"  {'─' * 60}")

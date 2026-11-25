@@ -445,7 +445,7 @@ def main() -> None:
     # meaningful.  Both are printed because the analysis is identical for
     # every format — only the bytes-per-weight constant differs.
     alt = None
-    if size_est["per_format_counts"]["FP8"]:
+    if args.base_format != args.sensitive_format and size_est["per_format_counts"]["FP8"]:
         other     = "fp8" if args.sensitive_format != "fp8" else "mxfp8"
         alt_bpp   = dict(tier_bpp)
         alt_bpp["FP8"] = core.FORMAT_BYTES_PER_WEIGHT[other]
