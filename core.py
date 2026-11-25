@@ -728,6 +728,18 @@ def print_suggested_params(
     mixed = sensitive_format != base_format
     if not mixed:
         fp8_regex = None
+    else:
+        base_bpw = FORMAT_BYTES_PER_WEIGHT.get(base_format, 0.0)
+        sens_bpw = FORMAT_BYTES_PER_WEIGHT.get(sensitive_format, 0.0)
+        if sens_bpw <= base_bpw:
+            print()
+            print(f"  *** WARNING: the sensitive tier ({sensitive_format.upper()}) is not more")
+            print(f"  *** precise than the base ({base_format.upper()}): {sens_bpw} vs {base_bpw}")
+            print(f"  *** bytes per weight. Promoting layers to it gains nothing, and a")
+            print(f"  *** tensorwise scheme is worse than a block-scaled one for outliers.")
+            print(f"  *** Did you mean --sensitive-format {base_format} (uniform build), or a")
+            print(f"  *** smaller base such as --base-format nvfp4?")
+            print()
 
     # Build the recommended ctq command
     ctq_args = [
