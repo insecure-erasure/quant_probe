@@ -506,10 +506,19 @@ def print_highprec_notice(excluded: List[str], convert_flag: str) -> None:
     print("  LAYERS EXCLUDED FROM ANALYSIS")
     print(SEP)
     print(f"  The following layers are NOT included in this analysis because they")
-    print(f"  receive special high-precision treatment in convert_to_quant")
-    print(f"  ({convert_flag}) and are assumed to reflect an informed architectural")
-    print(f"  decision by the model author.  Consult convert_to_quant documentation")
-    print(f"  for details on their handling.")
+    if convert_flag:
+        print(f"  receive special high-precision treatment in convert_to_quant")
+        print(f"  ({convert_flag}) and are assumed to reflect an informed architectural")
+        print(f"  decision by the model author.  Consult convert_to_quant documentation")
+        print(f"  for details on their handling.")
+    else:
+        # Models without a convert_to_quant preset (ernie, qwen21, moss) carry a
+        # self-contained exclude list, so there is no flag to name here and an
+        # empty "()" would just look like a bug in the output.
+        print(f"  receive special high-precision treatment in convert_to_quant.  This")
+        print(f"  model has no convert_to_quant preset, so the exclusion list is")
+        print(f"  self-contained (see the model's page under doc/) and is assumed to")
+        print(f"  reflect an informed architectural decision by the model author.")
     print()
     for name in excluded:
         print(f"    - {name}")
