@@ -2,7 +2,7 @@
 
 Quantization sensitivity analysis for safetensors diffusion models. Analyzes weight tensors to recommend a per-layer quantization format and generates ready-to-use parameters for [convert_to_quant](https://github.com/silveroxides/convert_to_quant).
 
-Supported architectures: **Wan 2.1**, **Wan 2.2**, **Z-Image Turbo**, **ERNIE Image Turbo** and **Qwen-Image 2.1**.
+Supported architectures: **Wan 2.1**, **Wan 2.2**, **Z-Image Turbo**, **ERNIE Image Turbo**, **Qwen-Image 2.1** and **MOSS-Image**.
 
 ## How it works
 
@@ -36,7 +36,7 @@ The output includes a ready-to-use `ctq` command with `--custom-layers` and `--e
 
 | Option | Default | Description |
 |---|---|---|
-| `--model` | required | Architecture: `wan21`, `wan22`, `zimage`, `ernie` or `qwen21` |
+| `--model` | required | Architecture: `wan21`, `wan22`, `zimage`, `ernie`, `qwen21` or `moss` |
 | `--base-format` | `nvfp4` | Format for the least-sensitive tier: `nvfp4`, `mxfp8`, `int8` or `fp8` (emits no flag — FP8 is `ctq`'s default) |
 | `--sensitive-format` | derived | Format for the sensitive tier, emitted as `--custom-type`. Unset = FP8 when the base is `nvfp4`, otherwise the base itself (uniform build, no `--custom-layers` block) |
 | `--fp8-percentile` | model-specific | Score percentile threshold for FP8 |

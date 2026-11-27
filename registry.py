@@ -9,7 +9,7 @@ To add a new architecture:
   2. Add one import line and one entry in MODEL_CONFIGS below.
 """
 
-from quant_probe.models import wan21, wan22, zimage, ernie, qwen21
+from quant_probe.models import wan21, wan22, zimage, ernie, qwen21, moss
 
 from quant_probe.models.base import ArchitectureConfig
 from typing import Dict
@@ -20,4 +20,5 @@ MODEL_CONFIGS: Dict[str, ArchitectureConfig] = {
     zimage.CONFIG.name: zimage.CONFIG,
     ernie.CONFIG.name: ernie.CONFIG,
     qwen21.CONFIG.name: qwen21.CONFIG,
+    moss.CONFIG.name: moss.CONFIG,
 }

@@ -2,7 +2,7 @@
 
 A command-line tool to analyze weight tensors in diffusion model checkpoints and recommend a quantization format for each layer — `*KEEP*` (BF16), FP8, or NVFP4 — then outputs a complete `ctq` command with `--nvfp4`, `--save-quant-metadata`, `--comfy_quant`, and model-specific flags. Designed to feed directly into [ComfyUI](https://github.com/comfyanonymous/ComfyUI) quantization workflows.
 
-Supported architectures: **Wan 2.1**, **Wan 2.2**, **Z-Image Turbo**, **ERNIE Image Turbo** and **Qwen-Image 2.1**.
+Supported architectures: **Wan 2.1**, **Wan 2.2**, **Z-Image Turbo**, **ERNIE Image Turbo**, **Qwen-Image 2.1** and **MOSS-Image**.
 
 ## Features
 
@@ -146,6 +146,17 @@ Blocks (`transformer_blocks.0` … `.31`), single-stream DiT. No refiners.
 
 Excluded from analysis (kept BF16): the eight global 2D matrices — `img_in`, `txt_in.in_layer`, `txt_in.out_layer`, `time_text_embed.timestep_embedder.linear_1` / `linear_2`, `modulation.1`, `norm_out.linear`, `proj_out` — plus the 1D norms. See [`qwen-image-2.1.md`](qwen-image-2.1.md) for the verified 265-key inventory and why `--qwen` must not be used with it.
 
+### MOSS-Image
+
+Blocks (`layers.0` … `.41`), single-stream DiT with fully fused attention and FFN. The Base and SFT releases share an identical 379-key header, so one config covers both; **SFT is the reference variant** for calibration. No refiners.
+
+| Group | Layers |
+|---|---|
+| `attention` | `qkv`, `o` |
+| `ffn` | `up_gate`, `down` |
+
+Excluded from analysis (kept BF16): `shared_block_modulation` (global adaLN), `text_embedder.proj`, the two `text_embedder.blocks.*` stacks, `time_embedding.0` / `.2`, `video_embedder`, `video_head_modulation`, `final_linear_video`, plus the 1D norms and `rope.bands`. See [`moss-image.md`](moss-image.md) for the verified 379-key inventory and the Comfy-Org int8 baseline.
+
 ## How recommendations are assigned
 
 Each tensor receives a sensitivity score combining three metrics:
@@ -203,7 +214,7 @@ Two additional guards override the score:
 | Argument | Default | Description |
 |---|---|---|
 | `model_path` | *(required)* | Path to the BF16 safetensors model file |
-| `--model` | *(required)* | Architecture: `wan21`, `wan22`, `zimage`, `ernie` or `qwen21` |
+| `--model` | *(required)* | Architecture: `wan21`, `wan22`, `zimage`, `ernie`, `qwen21` or `moss` |
 | `--csv` | — | Export per-tensor metrics to a CSV file |
 | `--device` | auto | Computation device: `cpu` or `cuda` |
 | `--lowram` | off | Avoid full-file mmap; load tensors individually by byte offset |
@@ -223,19 +234,20 @@ Two additional guards override the score:
 
 ### Model-specific defaults
 
-| Parameter | Wan 2.1 | Wan 2.2 | Z-Image | ERNIE | Qwen-Image 2.1 |
-|---|---|---|---|---|---|
-| `fp8-percentile` | 75.0 | 50.0* | 50.0 | 50.0* | 50.0* |
-| `keep-percentile` | 90.0 | 90.0* | 90.0 | 90.0* | 90.0* |
-| `kurtosis-keep` | 8.0 | 8.0* | 8.0 | 8.0* | 8.0* |
-| `fp8-min-score` | 0.50 | 0.50* | 0.0 | 0.0* | 0.0* |
-| `min-group-spread` | 0.06 | 0.06* | 0.20 | 0.20* | 0.20* |
+| Parameter | Wan 2.1 | Wan 2.2 | Z-Image | ERNIE | Qwen-Image 2.1 | MOSS-Image |
+|---|---|---|---|---|---|---|
+| `fp8-percentile` | 75.0 | 50.0* | 50.0 | 50.0* | 50.0* | 50.0* |
+| `keep-percentile` | 90.0 | 90.0* | 90.0 | 90.0* | 90.0* | 90.0* |
+| `kurtosis-keep` | 8.0 | 8.0* | 8.0 | 8.0* | 8.0* | 8.0* |
+| `fp8-min-score` | 0.50 | 0.50* | 0.0 | 0.0* | 0.0* | 0.0* |
+| `min-group-spread` | 0.06 | 0.06* | 0.20 | 0.20* | 0.20* | 0.20* |
 
 \* Wan 2.2 fp8_percentile set to 50 (empirical); other defaults cloned from Wan 2.1 — not yet recalibrated.
-\* ERNIE and Qwen-Image 2.1 defaults are cloned from Z-Image — not yet recalibrated.
+\* ERNIE, Qwen-Image 2.1 and MOSS-Image defaults are cloned from Z-Image — not yet recalibrated.
 
-See `doc/qwen-image-2.1.md` for the verified layer inventory of the Comfy-Org
-BF16 repack and why `--qwen` must not be used with it.
+See `doc/qwen-image-2.1.md` and `doc/moss-image.md` for the verified layer
+inventories of the Comfy-Org BF16 repacks, and why `--qwen` must not be used
+with Qwen-Image 2.1 (no MOSS-Image preset exists in convert_to_quant at all).
 
 ## Adding a new architecture
 

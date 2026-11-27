@@ -33,6 +33,7 @@ Supported models:
   zimage  - Z-Image / Z-Image Turbo image diffusion model
   ernie   - ERNIE Image Turbo image diffusion model
   qwen21  - Qwen-Image 2.1 image diffusion model (ComfyUI single-file)
+  moss    - MOSS-Image diffusion model (base / SFT)
 
 Score composition:
   - Excess kurtosis (IQR-normalized globally)       default weight: 0.6
@@ -48,6 +49,7 @@ Default thresholds are calibrated per model:
   zimage - calibrated empirically from Z-Image Turbo score distribution
   ernie  - cloned from Z-Image defaults (not yet recalibrated)
   qwen21 - cloned from Z-Image defaults (not yet recalibrated)
+  moss   - cloned from Z-Image defaults (not yet recalibrated)
 """,
     )
     parser.add_argument("model_path", type=str,
@@ -88,7 +90,8 @@ Default thresholds are calibrated per model:
                             "wan21: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  wan22: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  "
                             "zimage: attention.qkv attention.out  |  "
                             "ernie: self_attn.q self_attn.k  |  "
-                            "qwen21: attn.q attn.k attn.v attn.o"
+                            "qwen21: attn.q attn.k attn.v attn.o  |  "
+                            "moss: attn.qkv attn.o"
                         ))
     parser.add_argument("--kurtosis-keep", type=float, default=None, metavar="K",
                         help="Hard floor on excess kurtosis: forces *KEEP* (default: model-specific).")
