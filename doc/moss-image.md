@@ -165,6 +165,12 @@ with a per-row `weight_scale` (`[out_features, 1]`, F32) plus a per-block
 the exclude list — read from the file's own header, so it can be re-checked
 without downloading anything.
 
+> **The input must be the BF16 file.** The analyser only filters on
+> `ndim == 2`; it does not check dtype. Pointing `--model moss` at the
+> `*_int8_convrot.safetensors` build would compute kurtosis over int8 weights
+> (757 tensors, `I8`/`U8`) and silently return garbage rather than fail. The
+> int8 pack is an output to compare against, not an input.
+
 ---
 
 ## 7. Calibrated defaults
@@ -214,20 +220,31 @@ model stays in BF16:
 | `--keep-percentile` | BF16 tensors | Total | vs BF16 source |
 |---|---|---|---|
 | **90 (default)** | **17** | **5.71 GiB** | **−39.7%** |
+| 80 | 34 | 6.30 GiB | −33.4% |
 | 75 | 42 | 6.54 GiB | −31.0% |
 | 60 | 67 | 7.15 GiB | −24.5% |
 | 50 | 84 | 7.58 GiB | −20.0% |
 
-Numbers measured on the SFT run above. The default stays at 90 — the 17 tensors
-it protects are the pathological ones (kurtosis 21.2 / 10.5 / 8.5 plus the
-block-41 tail at score 0.90). `--keep-percentile 75` is the natural step up for
-a pure-MXFP8 build: it also keeps `qkv`/`o` of the first and last four blocks in
-BF16 for +0.8 GiB.
+Numbers measured on the SFT run above, and the 80 cut was converted for real:
+the output came out at **6.77 GB (6.30 GiB)** against the 10.16 GB source —
+−33.4%, ratio 1.50× — with the estimator above within 0.1 MB of the file on
+disk. The default stays at 90 — the 17 tensors it protects are the pathological
+ones (kurtosis 21.2 / 10.5 / 8.5 plus the block-41 tail at score 0.90).
+`--keep-percentile 75` (or 80) is the natural step up for a pure-MXFP8 build:
+it also keeps `qkv`/`o` of the first and last four blocks in BF16 for +0.6 to
++0.8 GiB.
 
-This costs size but not precision: MXFP8 (E4M3 with an E8M0 scale every 32
-weights) is at least as accurate as the tensorwise FP8 those 89 layers would
-have received in an NVFP4 build. The FP8 tier exists to shield layers from
-NVFP4 — with no NVFP4 in the build there is nothing to shield them from.
+Be aware that a percentile cut in the dense part of the distribution protects
+*islands* rather than ranges: at 80, `ffn.up_gate` comes out as blocks 24–37 plus
+38–41, but `ffn.down` skips 26–32 and `attn.qkv` protects 0, 3, 32 and 38–41
+individually. That is the score distribution speaking, not a bug — if you want
+block-aligned protection, pick the range explicitly instead of the percentile.
+
+Choosing MXFP8 over NVFP4 costs size, not precision: MXFP8 (E4M3 with an E8M0
+scale every 32 weights) is at least as accurate as the tensorwise FP8 those 89
+layers would have received in an NVFP4 build. The FP8 tier exists to shield
+layers from NVFP4 — with no NVFP4 in the build there is nothing to shield them
+from.
 
 ```bash
 # pure MXFP8, default protection (17 BF16 tensors, 5.71 GiB)
