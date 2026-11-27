@@ -15,6 +15,11 @@ dependencies = [
 [project.scripts]
 quant-probe = "quant_probe.cli:main"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["quant_probe*"]
+# The repository root *is* the quant_probe package: there is no quant_probe/
+# subdirectory. `[tool.setuptools.packages.find]` cannot express that — it only
+# scans subdirectories, so it matched nothing, produced an empty wheel and the
+# console script failed with `ModuleNotFoundError: No module named 'quant_probe'`.
+# The mapping below is the explicit equivalent.
+[tool.setuptools]
+packages = ["quant_probe", "quant_probe.models"]
+package-dir = { "quant_probe" = "." }

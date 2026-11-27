@@ -600,7 +600,20 @@ def build_convert_to_quant_params(
             fp8_entries.append((row.layer_type, indices, subgraph))
 
         elif row.recommendation == "FP8":
-            fp8_entries.append((row.layer_type, indices, subgraph))
+            # A group-level FP8 verdict is the least specific of the two
+            # override paths, so it must not discard a tensor that earned
+            # *KEEP* on its own score.  Mirror the *KEEP* branch below and
+            # resolve per tensor, promoting individual *KEEP* back to BF16.
+            keep_idxs = [
+                idx for idx in indices
+                if individual_rec.get((row.layer_type, idx, subgraph)) == "*KEEP*"
+            ]
+            kept      = set(keep_idxs)
+            fp8_idxs  = [idx for idx in indices if idx not in kept]
+            if keep_idxs:
+                keep_entries.append((row.layer_type, keep_idxs, subgraph))
+            if fp8_idxs:
+                fp8_entries.append((row.layer_type, fp8_idxs, subgraph))
 
         elif row.recommendation == "*KEEP*":
             keep_idxs, fp8_idxs = [], []
@@ -614,6 +627,26 @@ def build_convert_to_quant_params(
                 keep_entries.append((row.layer_type, keep_idxs, subgraph))
             if fp8_idxs:
                 fp8_entries.append((row.layer_type, fp8_idxs, subgraph))
+
+    # Safety net: a tensor whose own score earned *KEEP* must never end up at
+    # the base format, no matter which group verdict (or spread demotion) applied
+    # to it.  The per-branch handling above covers the FP8 and *KEEP* groups; this
+    # pass catches the tensors that fell through to NVFP4.
+    already_kept = {(lt, idx, sg) for lt, idxs, sg in keep_entries for idx in idxs}
+    rescue: Dict[Tuple[str, str], List[int]] = defaultdict(list)
+    for m in all_metrics:
+        if m.recommendation == "*KEEP*" and (m.layer_type, m.block_idx, m.subgraph) not in already_kept:
+            rescue[(m.layer_type, m.subgraph)].append(m.block_idx)
+    if rescue:
+        rescued = set()
+        for (layer_type, subgraph), idxs in rescue.items():
+            keep_entries.append((layer_type, sorted(idxs), subgraph))
+            rescued.update((layer_type, i, subgraph) for i in idxs)
+        fp8_entries = [
+            (layer_type, [i for i in idxs if (layer_type, i, subgraph) not in rescued], subgraph)
+            for layer_type, idxs, subgraph in fp8_entries
+        ]
+        fp8_entries = [entry for entry in fp8_entries if entry[1]]
 
     return fp8_entries, keep_entries
 
@@ -666,6 +699,8 @@ def print_suggested_params(
     fp8_min_score:    float,
     min_group_spread: float,
     cfg:              ArchitectureConfig,
+    base_format:      str = "nvfp4",
+    sensitive_format: str = "fp8",
 ) -> None:
     print()
     print(SEP)
@@ -688,15 +723,34 @@ def print_suggested_params(
     else:
         combined = None
 
+    # When both tiers resolve to the same format the custom-layers block is a
+    # no-op: anything not excluded already gets the base format.
+    mixed = sensitive_format != base_format
+    if not mixed:
+        fp8_regex = None
+    else:
+        base_bpw = FORMAT_BYTES_PER_WEIGHT.get(base_format, 0.0)
+        sens_bpw = FORMAT_BYTES_PER_WEIGHT.get(sensitive_format, 0.0)
+        if sens_bpw <= base_bpw:
+            print()
+            print(f"  *** WARNING: the sensitive tier ({sensitive_format.upper()}) is not more")
+            print(f"  *** precise than the base ({base_format.upper()}): {sens_bpw} vs {base_bpw}")
+            print(f"  *** bytes per weight. Promoting layers to it gains nothing, and a")
+            print(f"  *** tensorwise scheme is worse than a block-scaled one for outliers.")
+            print(f"  *** Did you mean --sensitive-format {base_format} (uniform build), or a")
+            print(f"  *** smaller base such as --base-format nvfp4?")
+            print()
+
     # Build the recommended ctq command
     ctq_args = [
         "ctq",
         "-i model.safetensors",
-        "-o model-nvfp4.safetensors",
-        "--nvfp4",
-        "--save-quant-metadata",
-        "--comfy_quant",
+        f"-o model-{base_format}.safetensors",
     ]
+    base_flag = FORMAT_CTQ_FLAG.get(base_format, "")
+    if base_flag:
+        ctq_args.append(base_flag)
+    ctq_args += ["--save-quant-metadata", "--comfy_quant"]
 
     model_flag = _build_model_flag(cfg.convert_flag)
     if model_flag:
@@ -704,7 +758,7 @@ def print_suggested_params(
 
     if fp8_regex:
         ctq_args.append(f'--custom-layers "{fp8_regex}"')
-        ctq_args.append("--custom-type fp8")
+        ctq_args.append(f"--custom-type {sensitive_format}")
 
     if combined:
         ctq_args.append(f'--exclude-layers "{combined}"')
@@ -718,11 +772,18 @@ def print_suggested_params(
     print("  Individual parameters (for reference):")
     print()
 
+    print(f"  Formats: base = {base_format.upper()}  |  sensitive tier = "
+          f"{sensitive_format.upper() if mixed else 'not used'}")
+    print()
+
     if fp8_regex:
         print(f'    --custom-layers  "{fp8_regex}"')
-        print( "    --custom-type    fp8")
+        print(f"    --custom-type    {sensitive_format}")
+    elif not mixed:
+        print(f"    --custom-layers  (none — base and sensitive format are both "
+              f"{base_format.upper()})")
     else:
-        print("    --custom-layers  (none — all layers at NVFP4 or filtered)")
+        print("    --custom-layers  (none — no layer was promoted to the sensitive tier)")
 
     if combined:
         print(f'    --exclude-layers "{combined}"')
@@ -732,15 +793,25 @@ def print_suggested_params(
     print()
     print(f"  {'─' * 60}")
     print("  Notes:")
-    print("    --nvfp4              Quantize non-sensitive layers to NVFP4 (4-bit)")
-    print("    --custom-type fp8    Override specific layers to FP8")
+    if base_flag:
+        print(f"    {base_flag:<21}Quantize non-sensitive layers to {base_format.upper()}")
+    else:
+        print(f"    {'(no format flag)':<21}FP8 is convert_to_quant's default")
+    if fp8_regex:
+        print(f"    {'--custom-type ' + sensitive_format:<21}"
+              f"Override the sensitive tier to {sensitive_format.upper()}")
     print("    --exclude-layers     Keep sensitive layers in BF16")
     print("    --save-quant-metadata  Store quantization params in safetensors header")
     print("    --comfy_quant        Add ComfyUI-compatible layer metadata")
 
-    print()
-    print(f"  Hardware note: NVFP4 requires Blackwell GPUs (CUDA 13.0+, PyTorch 2.10+).")
-    print(f"  For Ada/Hopper GPUs, replace --nvfp4 with --int8 or omit for FP8 default.")
+    bw_formats = sorted({f.upper() for f in (base_format, sensitive_format)
+                         if mixed or f == base_format} & {f.upper() for f in _BLACKWELL_ONLY})
+    if bw_formats:
+        verb = "requires" if len(bw_formats) == 1 else "require"
+        print()
+        print(f"  Hardware note: {' and '.join(bw_formats)} {verb} Blackwell GPUs "
+              f"(SM >= 10.0, CUDA 13.0+, PyTorch 2.10+).")
+        print("  For Ada/Hopper GPUs use --base-format int8, or --base-format fp8 for plain FP8.")
     print(SEP)
 
 
@@ -791,13 +862,29 @@ def build_effective_rec(
         else:
             for idx in indices:
                 k       = (row.layer_type, idx, subgraph)
-                effective_rec[k] = row.recommendation
                 ind_rec = individual_rec.get(k, row.recommendation)
+                if row.recommendation == "FP8" and ind_rec == "*KEEP*":
+                    # See build_convert_to_quant_params: a group FP8 verdict
+                    # does not override an individual *KEEP*.
+                    effective_rec[k]    = "*KEEP*"
+                    effective_reason[k] = "group_keep_preserved"
+                    continue
+                effective_rec[k] = row.recommendation
                 if ind_rec != row.recommendation:
                     if row.recommendation == "FP8" and ind_rec == "NVFP4":
                         effective_reason[k] = "group_fp8_promotion"
                     else:
                         effective_reason[k] = "group_spread_demotion"
+
+    # Mirror the safety net in build_convert_to_quant_params so the CSV and the
+    # size estimate agree with the emitted command.
+    for m in all_metrics:
+        if m.recommendation != "*KEEP*":
+            continue
+        k = (m.layer_type, m.block_idx, m.subgraph)
+        if effective_rec.get(k) != "*KEEP*":
+            effective_rec[k]    = "*KEEP*"
+            effective_reason[k] = "group_keep_preserved"
 
     return effective_rec, effective_reason
 
@@ -850,18 +937,73 @@ def export_csv(
 # Output file size estimation
 # ---------------------------------------------------------------------------
 
+# Bytes per weight for each tier, used when no explicit override is given.
+# The tier names are internal (they predate the format flags) and are mapped to
+# a concrete format by FORMAT_BYTES_PER_WEIGHT before being emitted.
 _BYTES_PER_WEIGHT: Dict[str, float] = {
     "*KEEP*": 2.0,
     "FP8":    1.0,
     "NVFP4":  0.5625,
 }
 
+# Bytes per weight for the formats convert_to_quant can emit.
+# MXFP8 stores E4M3 data with an E8M0 scale every 32 weights
+# (128 + 8 bits per 32 weights), i.e. 8.25 bits = 1.03125 bytes per weight.
+FORMAT_BYTES_PER_WEIGHT: Dict[str, float] = {
+    "fp8":   1.0,
+    "mxfp8": 1.03125,
+    "int8":  1.0,
+    "nvfp4": 0.5625,
+    "int4":  0.5625,
+}
+
+# ctq flag for each base format.  FP8 is ctq's default and needs no flag.
+FORMAT_CTQ_FLAG: Dict[str, str] = {
+    "nvfp4": "--nvfp4",
+    "mxfp8": "--mxfp8",
+    "int8":  "--int8",
+    "fp8":   "",
+}
+
+# Blackwell-only formats; ctq requires SM >= 10.0 to run them.
+_BLACKWELL_ONLY: Tuple[str, ...] = ("nvfp4", "mxfp8")
+
+
+def resolve_sensitive_format(base_format: str, sensitive_format: Optional[str]) -> str:
+    """
+    Derive the sensitive tier from the base when it was not given explicitly.
+
+    A base that already stores 8 bits per weight (mxfp8, int8, fp8) has no room
+    for a more precise tier, so it stays uniform.  NVFP4 is the only 4-bit base
+    and its historical companion is plain FP8.
+
+    An explicit value is always honoured; print_suggested_params warns when it
+    ends up being no more precise than the base.
+    """
+    if sensitive_format:
+        return sensitive_format
+    return "fp8" if base_format == "nvfp4" else base_format
+
+
+def tier_bytes_per_weight(
+    base_format:      str = "nvfp4",
+    sensitive_format: str = "fp8",
+) -> Dict[str, float]:
+    """Map the internal tier names onto the bytes/weight of the emitted formats."""
+    return {
+        "*KEEP*": 2.0,
+        "FP8":    FORMAT_BYTES_PER_WEIGHT.get(sensitive_format, 1.0),
+        "NVFP4":  FORMAT_BYTES_PER_WEIGHT.get(base_format, 0.5625),
+    }
+
 
 def estimate_output_size(
     all_metrics:    List[TensorMetrics],
     effective_rec:  Dict,
     original_bytes: int,
+    bpp:            Optional[Dict[str, float]] = None,
 ) -> Dict:
+    bpp = bpp if bpp is not None else _BYTES_PER_WEIGHT
     in_scope_original  = 0
     in_scope_estimated = 0.0
     per_format_bytes:  Dict[str, float] = {"*KEEP*": 0.0, "FP8": 0.0, "NVFP4": 0.0}
@@ -872,7 +1014,7 @@ def estimate_output_size(
         in_scope_original += n_weights * 2
 
         fmt          = effective_rec.get((m.layer_type, m.block_idx, m.subgraph), m.recommendation)
-        bpw          = _BYTES_PER_WEIGHT.get(fmt, 2.0)
+        bpw          = bpp.get(fmt, 2.0)
         tensor_bytes = n_weights * bpw
         in_scope_estimated          += tensor_bytes
         per_format_bytes[fmt]        = per_format_bytes.get(fmt, 0.0) + tensor_bytes
@@ -892,10 +1034,15 @@ def estimate_output_size(
     }
 
 
-def print_size_estimate(est: Dict) -> None:
+def print_size_estimate(
+    est:         Dict,
+    tier_labels: Optional[Dict[str, str]] = None,
+    alt:         Optional[Tuple[str, float]] = None,
+) -> None:
     def gb(b: float) -> str:
         return f"{b / 1024**3:.2f} GB"
 
+    tier_labels = tier_labels or {}
     original  = est["original_bytes"]
     total     = est["total_estimated_bytes"]
     delta     = total - original
@@ -911,13 +1058,29 @@ def print_size_estimate(est: Dict) -> None:
     print("  ESTIMATED OUTPUT FILE SIZE")
     print(SEP)
     print(f"  Tensors in scope ({n_scope})  —  original BF16: {gb(est['in_scope_original_bytes'])}")
-    for fmt in ("*KEEP*", "FP8", "NVFP4"):
-        label = f"    {fmt} ({'BF16' if fmt == '*KEEP*' else fmt})"
-        print(f"  {label:<38}  {pfc[fmt]:>4} tensors  →  {gb(pfb[fmt]):>9}")
+    # When both tiers emit the same format the split between them is not a
+    # decision any more — collapse it, otherwise the table implies a
+    # distinction that does not exist.
+    merged = tier_labels.get("FP8") is not None and \
+             tier_labels.get("FP8") == tier_labels.get("NVFP4")
+    if merged:
+        n_t = pfc["FP8"] + pfc["NVFP4"]
+        b_t = pfb["FP8"] + pfb["NVFP4"]
+        label = f"    {tier_labels['NVFP4'].upper()} (uniform) — all non-BF16 layers"
+        print(f"  {label:<38}  {n_t:>4} tensors  →  {gb(b_t):>9}")
+    else:
+        for fmt in ("*KEEP*", "FP8", "NVFP4"):
+            emitted = tier_labels.get(fmt, fmt)
+            label   = f"    {fmt} ({'BF16' if fmt == '*KEEP*' else emitted.upper()})"
+            print(f"  {label:<38}  {pfc[fmt]:>4} tensors  →  {gb(pfb[fmt]):>9}")
     print(f"  {'  Subtotal after quantization':<38}  {gb(est['in_scope_estimated_bytes']):>9}")
     print(f"  {'Tensors out of scope (BF16, unchanged)':<38}  {gb(est['out_of_scope_bytes']):>9}")
     print(f"  {'─' * 60}")
     print(f"  {'Total estimated':<38}  {gb(total):>9}")
     print(f"  {'Original file size':<38}  {gb(original):>9}")
     print(f"  {'Delta':<38}  {sign}{abs_delta:.2f} GB  ({sign}{abs(delta_pct):.1f}%)")
+    if alt is not None:
+        alt_label, alt_bytes = alt
+        print(f"  {'─' * 60}")
+        print(f"  {alt_label:<38}  {gb(alt_bytes):>9}")
     print(SEP)

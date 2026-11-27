@@ -31,6 +31,8 @@ Supported models:
   wan21   - Wan 2.1 video diffusion model
   wan22   - Wan 2.2 I2V-A14B MoE video diffusion model (high / low)
   zimage  - Z-Image / Z-Image Turbo image diffusion model
+  ernie   - ERNIE Image Turbo image diffusion model
+  qwen21  - Qwen-Image 2.1 image diffusion model (ComfyUI single-file)
 
 Score composition:
   - Excess kurtosis (IQR-normalized globally)       default weight: 0.6
@@ -82,12 +84,29 @@ Default thresholds are calibrated per model:
                             "QK^T sensitivity.  "
                             "Recommended values — "
                             "wan21: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  wan22: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  "
-                            "zimage: attention.qkv attention.out"
+                            "zimage: attention.qkv attention.out  |  "
+                            "qwen21: attn.q attn.k"
                         ))
     parser.add_argument("--kurtosis-keep", type=float, default=None, metavar="K",
                         help="Hard floor on excess kurtosis: forces *KEEP* (default: model-specific).")
     parser.add_argument("--lowram", action="store_true", default=False,
                         help="Avoid mmap-ing the full model file.")
+    parser.add_argument("--base-format", type=str, default="nvfp4",
+                        choices=["nvfp4", "mxfp8", "int8", "fp8"],
+                        help=(
+                            "Format for the least-sensitive tier — emitted as the main "
+                            "convert_to_quant flag and used for the output filename "
+                            "(default: nvfp4). Use 'fp8' to emit no flag, since FP8 is "
+                            "ctq's default."))
+    parser.add_argument("--sensitive-format", type=str, default=None,
+                        choices=["fp8", "mxfp8", "int8", "nvfp4"],
+                        help=(
+                            "Format for the sensitive tier, emitted as --custom-type. "
+                            "Unset (default): FP8 when the base is nvfp4, otherwise the "
+                            "base format itself — a base that is already 8-bit leaves no "
+                            "room above it, so the build stays uniform and no "
+                            "--custom-layers block is emitted. Set it only to override "
+                            "that, and only with a format wider than the base."))
     return parser
 
 
@@ -133,6 +152,10 @@ def main() -> None:
     kurtosis_keep    = _resolve(args.kurtosis_keep,    "kurtosis_keep",    defaults)
     fp8_min_score    = _resolve(args.fp8_min_score,    "fp8_min_score",    defaults)
     min_group_spread = _resolve(args.min_group_spread, "min_group_spread", defaults)
+
+    # The sensitive tier is derived, not independently defaulted: a base that is
+    # already 8-bit has nothing wider to promote to, so the build stays uniform.
+    sensitive_format = core.resolve_sensitive_format(args.base_format, args.sensitive_format)
 
     # Validate spread_filter_exempt layer types
     all_layer_types: Set[str] = set(cfg.layer_patterns.keys())
@@ -401,6 +424,8 @@ def main() -> None:
         fp8_entries, keep_entries,
         fp8_min_score, min_group_spread,
         cfg,
+        base_format      = args.base_format,
+        sensitive_format = sensitive_format,
     )
 
     # -----------------------------------------------------------------------
@@ -417,8 +442,30 @@ def main() -> None:
         core.export_csv(all_metrics, args.csv, effective_rec, effective_reason)
 
     original_bytes = model_path.stat().st_size
-    size_est       = core.estimate_output_size(all_metrics, effective_rec, original_bytes)
-    core.print_size_estimate(size_est)
+    tier_bpp       = core.tier_bytes_per_weight(args.base_format, sensitive_format)
+    size_est       = core.estimate_output_size(
+        all_metrics, effective_rec, original_bytes, bpp=tier_bpp
+    )
+
+    # Which tier is non-empty decides whether the alternative figure is
+    # meaningful.  Both are printed because the analysis is identical for
+    # every format — only the bytes-per-weight constant differs.
+    alt = None
+    if args.base_format != sensitive_format and size_est["per_format_counts"]["FP8"]:
+        other     = "fp8" if sensitive_format != "fp8" else "mxfp8"
+        alt_bpp   = dict(tier_bpp)
+        alt_bpp["FP8"] = core.FORMAT_BYTES_PER_WEIGHT[other]
+        alt_est   = core.estimate_output_size(
+            all_metrics, effective_rec, original_bytes, bpp=alt_bpp
+        )
+        alt = (f"Total if the sensitive tier is {other.upper()}",
+               alt_est["total_estimated_bytes"])
+
+    core.print_size_estimate(
+        size_est,
+        tier_labels = {"FP8": sensitive_format, "NVFP4": args.base_format},
+        alt         = alt,
+    )
 
 
 if __name__ == "__main__":
