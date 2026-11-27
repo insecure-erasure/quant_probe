@@ -17,8 +17,9 @@ projections with RMSNorm on Q and K (norm_q/norm_k, 1D).
 
 No refiner sub-graphs.
 
-Calibrated defaults are cloned from Z-Image (same DiT lineage, same
-single-stream layout) and have NOT been recalibrated for Qwen-Image 2.1.
+Calibrated defaults were verified against a 224-tensor score distribution of
+this model (diffusers naming, see doc/qwen-image-2.1.md section 7) and kept at
+the Z-Image values -- nothing needed to change.
 """
 
 import re
@@ -77,9 +78,23 @@ _HIGHPREC_EXCLUDED = [
 ]
 
 # ---------------------------------------------------------------------------
-# Calibrated defaults (cloned from Z-Image — not yet recalibrated)
 # ---------------------------------------------------------------------------
-
+# Calibrated defaults
+# ---------------------------------------------------------------------------
+# Verified on a 224-tensor run (diffusers naming: img_mlp.gate_layer + proj
+# instead of the fused gate_up).  The Z-Image values survived unchanged:
+#   - scores span 0.17-0.90 with a smooth continuum below 0.55 and no valley
+#     anywhere in it (largest gap in that region is 0.02), so the 50th-percentile
+#     cut (0.386) is neutral rather than tuned;
+#   - keep_percentile 90 puts the cut at 0.653, inside a dense band.  The only
+#     real gap higher up is 0.762 -> 0.796 (0.034), which would isolate a 14-
+#     tensor cluster at keep_percentile 94.  Not worth the extra 9 tensors left
+#     quantized on the strength of a 0.034 gap in 224 samples;
+#   - fp8_min_score 0.0: nothing low-clustered for a floor to block;
+#   - min_group_spread 0.20: never fires (FFN positional spreads are 0.28-0.40),
+#     but see section 5 of the doc -- attn.q's own spread is 0.091, so the
+#     exemption list, not this floor, is what keeps attention undegraded;
+#   - kurtosis_keep 8.0: catches 5 tensors, the worst at 27.47.
 _DEFAULT_ARGS = {
     "fp8_percentile":   50.0,
     "keep_percentile":  90.0,

@@ -48,7 +48,7 @@ Default thresholds are calibrated per model:
   wan22  - cloned from Wan 2.1 defaults (not yet recalibrated)
   zimage - calibrated empirically from Z-Image Turbo score distribution
   ernie  - cloned from Z-Image defaults (not yet recalibrated)
-  qwen21 - cloned from Z-Image defaults (not yet recalibrated)
+  qwen21 - verified on Qwen-Image 2.1 score distribution (values kept)
   moss   - verified on MOSS-Image SFT score distribution (values kept)
 """,
     )

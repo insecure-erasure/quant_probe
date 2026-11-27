@@ -105,6 +105,12 @@ quant-probe qwen_image_2.1_bf16.safetensors --model qwen21 \
     --spread-filter-exempt attn.q attn.k attn.v attn.o
 ```
 
+**This list is load-bearing for `attn.q`.** Its measured positional spread is
+**0.091**, less than half of the `min_group_spread` floor of 0.20, so without the
+exemption the spread filter would demote every FP8 `attn.q` tensor in the block
+range it resolved. The exemption is what keeps the projection decisions
+tensor-by-tensor; dropping `attn.q` from it is not a neutral experiment.
+
 ---
 
 ## 6. convert_to_quant flags
@@ -162,7 +168,7 @@ header, so it can be re-checked without downloading anything.
 
 ```python
 default_args = {
-    "fp8_percentile":   50.0,   # cloned from Z-Image — recalibrate
+    "fp8_percentile":   50.0,
     "keep_percentile":  90.0,
     "kurtosis_keep":     8.0,
     "fp8_min_score":     0.0,
@@ -170,13 +176,27 @@ default_args = {
 }
 ```
 
-Cloned from Z-Image (same single-stream DiT lineage) and **not yet
-recalibrated**. First run should be:
+**Verified on a 224-tensor run.** The run used the *diffusers* naming
+(`img_mlp.gate_layer` + `img_mlp.proj` instead of the ComfyUI repack's fused
+`gate_up`), which also exercises the dual-namespace patterns in
+`models/qwen21.py`: 7 matrices × 32 blocks. The Z-Image values survived
+unchanged, and each one was checked against the measured distribution:
 
-```bash
-quant-probe qwen_image_2.1_bf16.safetensors --model qwen21 \
-    --csv qwen21.csv --spread-filter-exempt attn.q attn.k attn.v attn.o
-```
+| Knob | Measurement | Outcome |
+|---|---|---|
+| `fp8_percentile 50` | Scores span 0.17–0.90: a smooth continuum below 0.55, largest gap in that region 0.02 | Cut lands at **0.386** (the median). Neutral, not tuned — there is no valley to cut on |
+| `keep_percentile 90` | Cut lands at **0.653**, inside a dense band. The first real gap above it is **0.762 → 0.796** (0.034) | Kept. `keep-percentile 94` would land on that gap and isolate a 14-tensor cluster, but 0.034 in 224 samples is thin evidence for leaving 9 more tensors quantized |
+| `fp8_min_score 0.0` | No low-score cluster | Guard stays off |
+| `min_group_spread 0.20` | Never fires (`spread_demotion` absent): FFN positional spreads are 0.28 / 0.28 / 0.40 | Kept, but note §5 — `attn.q`'s own spread is **0.091**, so the exemption list is what protects attention, not this floor |
+| `kurtosis_keep 8.0` | 5 tensors at kurtosis ≥ 8, the worst **27.47** (`attn.o` block 0) | Catches the pathological ones without over-reaching |
 
-then inspect the score distribution in `qwen21.csv` before trusting the
-FP8/*KEEP* split.
+Split obtained: **89 FP8 / 112 NVFP4 / 23 \*KEEP\*** by raw score, resolved to
+**83 / 118 / 23** after the group logic (8 promotions, 14 group demotions, 2
+individual \*KEEP\* rescued back to BF16 within an FP8 group).
+
+Caveat carried by the variant: the 224-tensor run has `ffn.gate` and `ffn.up` as
+separate 12288×4096 matrices, while the Comfy-Org repack fuses them into a single
+24576×4096 `gate_up`. Kurtosis — and therefore the FFN scores — are not
+identical between the two packagings, so the thresholds above are as valid as
+they can be for the fused file without a run of its own. Attention tensors are
+byte-identical in both, and they dominate the \*KEEP\* set (17 of 23).
