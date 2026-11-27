@@ -157,10 +157,11 @@ CONFIG = ArchitectureConfig(
     default_args              = _DEFAULT_ARGS,
     highprec_excluded         = _HIGHPREC_EXCLUDED,
     exclude_layers_suffix     = _EXCLUDE_LAYERS_SUFFIX,
-    # Q/K projections: primary source of quantization error in DiT (QK^T
-    # amplifies leptokurtic distributions).  In 2.1 Q and K each carry an
-    # RMSNorm (norm_q/norm_k), which does not shield the projections from
-    # quantization error — the norm is applied after the projection.
+    # Q/K drive QK^T, which amplifies leptokurtic distributions; V and out write
+    # into the residual stream and are equally sensitive to a group-level
+    # demotion.  In 2.1 Q and K each carry an RMSNorm (norm_q/norm_k) applied
+    # *after* the projection, which does not shield the projection from
+    # quantization error.
     spread_filter_recommended = ["attn.q", "attn.k", "attn.v", "attn.o"],
     main_subgraphs            = _MAIN_SUBGRAPHS,
     refiner_subgraphs         = _REFINER_SUBGRAPHS,

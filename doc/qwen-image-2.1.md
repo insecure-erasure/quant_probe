@@ -58,7 +58,7 @@ attention and prefix KV cache reuse"* — text conditioning is injected once by
 
 | Category | Params | % |
 |---|---|---|
-| Blocks (192 quantizable 2D) | ~6.94B | 97.6% |
+| Blocks (192 quantizable 2D) | ~6.98B | 98.1% |
 | Global (8 × 2D, kept BF16) | 0.135B | 1.9% |
 | 1D norms (65 tensors) | ~0.04M | ~0% |
 | **Total** | **~7.12B** | **100%** |
@@ -89,18 +89,20 @@ Validated against the real 265-key header: 192/192 block matrices matched, zero
 ## 5. Spread filter recommendations
 
 ```python
-spread_filter_recommended = ["attn.q", "attn.k"]
+spread_filter_recommended = ["attn.q", "attn.k", "attn.v", "attn.o"]
 ```
 
 Same rationale as ERNIE/other DiTs: the $QK^T$ product amplifies leptokurtic
-weight distributions, so Q/K projections deserve per-tensor decisions instead of
-being demoted by a group-level spread verdict. Note that in 2.1 Q and K each have
-an RMSNorm (`norm_q` / `norm_k`) applied *after* the projection — the norm does
-not shield the projection itself from quantization error.
+weight distributions, so Q/K deserve per-tensor decisions instead of being
+demoted by a group-level spread verdict. V and out are included as well — they
+write directly into the residual stream, so a group-level demotion there is just
+as costly. Note that in 2.1 Q and K each have an RMSNorm (`norm_q` / `norm_k`)
+applied *after* the projection — the norm does not shield the projection itself
+from quantization error.
 
 ```bash
 quant-probe qwen_image_2.1_bf16.safetensors --model qwen21 \
-    --spread-filter-exempt attn.q attn.k
+    --spread-filter-exempt attn.q attn.k attn.v attn.o
 ```
 
 ---
@@ -173,7 +175,7 @@ recalibrated**. First run should be:
 
 ```bash
 quant-probe qwen_image_2.1_bf16.safetensors --model qwen21 \
-    --csv qwen21.csv --spread-filter-exempt attn.q attn.k
+    --csv qwen21.csv --spread-filter-exempt attn.q attn.k attn.v attn.o
 ```
 
 then inspect the score distribution in `qwen21.csv` before trusting the

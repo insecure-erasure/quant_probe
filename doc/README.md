@@ -9,7 +9,7 @@ Supported architectures: **Wan 2.1**, **Wan 2.2**, **Z-Image Turbo**, **ERNIE Im
 - **Per-tensor sensitivity scoring** based on excess kurtosis, dynamic range, and aspect ratio
 - **Automatic thresholds** derived from the model's own score distribution — no manual tuning required
 - **Kurtosis hard floor** (`--kurtosis-keep`) to protect extremely leptokurtic tensors that score-based thresholds would miss
-- **Spread filter** to suppress per-group FP8 recommendations when score variation across block positions is too low to be meaningful
+- **Spread filter** to demote group-level recommendations by one step (FP8 → NVFP4, `*KEEP*` → FP8) when score variation across block positions is too low to be meaningful
 - **Spread filter exemptions** (`--spread-filter-exempt`) for layer types where individual tensor decisions should always take precedence over group-level ones
 - **Refiner-aware analysis** (Z-Image): `context_refiner` and `noise_refiner` sub-graphs are always resolved tensor-by-tensor — they have too few blocks for positional spread analysis to be meaningful
 - **Suggested `convert_to_quant` parameters** printed directly — `--custom-layers` and `--exclude-layers` regexes ready to copy
@@ -131,7 +131,7 @@ Scores are compared against two percentile-derived thresholds:
 Two additional guards override the score:
 
 - **Kurtosis hard floor** — tensors with excess kurtosis ≥ `--kurtosis-keep` are forced to `*KEEP*` regardless of score.
-- **Spread filter** — when score variation across block position groups (first blocks, middle, last blocks) is below `--min-group-spread`, per-group recommendations are suppressed and all tensors of that type fall back to NVFP4. Layer types listed in `--spread-filter-exempt` bypass this filter entirely. For Z-Image, refiner sub-graphs always bypass it.
+- **Spread filter** — when score variation across block position groups (first blocks, middle, last blocks) is below `--min-group-spread`, the group-level recommendation is demoted by one step: FP8 → NVFP4, `*KEEP*` → FP8. A tensor whose own score earned `*KEEP*` is never pushed below BF16 by this demotion. Layer types listed in `--spread-filter-exempt` bypass this filter entirely. For Z-Image, refiner sub-graphs always bypass it.
 
 ## CSV output
 
@@ -160,11 +160,11 @@ Two additional guards override the score:
 | `score_below_fp8_min` | NVFP4 because `fp8-min-score` guard blocked FP8 |
 | `default` | NVFP4 because score is below all thresholds |
 | `kurtosis_floor` | `*KEEP*` forced because excess kurtosis ≥ `kurtosis-keep` |
-| `group_keep_resolved` | Tensor was individually `*KEEP*` but demoted during per-tensor resolution within a `*KEEP*` group |
+| `group_keep_resolved` | Group verdict was `*KEEP*`, but this tensor's own score earned only FP8 or NVFP4, so that is what it kept |
 | `group_fp8_promotion` | Tensor was individually NVFP4 but carried up to FP8 by its block-position group |
-| `group_keep_preserved` | Group verdict was FP8, but the tensor's own score earned `*KEEP*`, so it kept BF16 |
-| `group_spread_demotion` | Tensor was individually FP8 or `*KEEP*` but brought down by the group's spread filter result |
-| `spread_demotion` | FP8→NVFP4 or `*KEEP*`→FP8 by spread filter directly |
+| `group_keep_preserved` | Tensor's own score earned `*KEEP*`, so neither an FP8 group verdict nor a spread demotion could push it below BF16 |
+| `group_spread_demotion` | Tensor was individually FP8 but its block-position group resolved to NVFP4 |
+| `spread_demotion` | FP8→NVFP4 or `*KEEP*`→FP8 by the spread filter directly |
 
 ## CLI reference
 

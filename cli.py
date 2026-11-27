@@ -85,7 +85,8 @@ Default thresholds are calibrated per model:
                             "Recommended values — "
                             "wan21: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  wan22: cross_attn.k cross_attn.q self_attn.k self_attn.q  |  "
                             "zimage: attention.qkv attention.out  |  "
-                            "qwen21: attn.q attn.k"
+                            "ernie: self_attn.q self_attn.k  |  "
+                            "qwen21: attn.q attn.k attn.v attn.o"
                         ))
     parser.add_argument("--kurtosis-keep", type=float, default=None, metavar="K",
                         help="Hard floor on excess kurtosis: forces *KEEP* (default: model-specific).")
