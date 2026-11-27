@@ -171,7 +171,7 @@ without downloading anything.
 
 ```python
 default_args = {
-    "fp8_percentile":   50.0,   # cloned from Z-Image — recalibrate
+    "fp8_percentile":   50.0,
     "keep_percentile":  90.0,
     "kurtosis_keep":     8.0,
     "fp8_min_score":     0.0,
@@ -179,13 +179,26 @@ default_args = {
 }
 ```
 
-Cloned from Z-Image (same single-stream DiT lineage) and **not yet
-recalibrated**. First run should be:
+**Verified on `moss_image_sft_bf16.safetensors`** (168 tensors, `--csv moss.csv
+--spread-filter-exempt attn.qkv attn.o`). The cloned Z-Image values survived
+unchanged — every knob was checked against the measured distribution:
 
-```bash
-quant-probe moss_image_sft_bf16.safetensors --model moss \
-    --csv moss.csv --spread-filter-exempt attn.qkv attn.o
-```
+| Observation | Consequence |
+|---|---|
+| Scores span 0.19–0.90; 61% of the mass sits below 0.35; the largest gap anywhere is 0.07 (0.74→0.81), so there is **no valley** to cut on | `fp8_percentile 50` (threshold 0.304) is kept as a *neutral* cut, not a tuned one. Only the two extremes are cleanly separated: blocks 0–3 and 38–41 score 0.72 for `attn.qkv` / 0.76 for `ffn.up_gate` vs 0.30 / 0.40 in the middle |
+| Positional spreads: 0.25 (`ffn.down`), 0.26 (`attn.o`), 0.42 (`attn.qkv`), 0.47 (`ffn.up_gate`) | `min_group_spread 0.20` **never fires** on this model (`reason` never reports `spread_demotion`), but it is only 20% below the flat layer types, so it would catch a genuinely position-invariant one |
+| 3 tensors at kurtosis ≥ 8 (8.53, 10.51, 21.23), next highest 4.97 | `kurtosis_keep 8.0` catches exactly the extreme tail without over-reaching — all three are in blocks 0/1/41 |
+| No low-score cluster; 12 tensors sit within 0.015 of the FP8 threshold | `fp8_min_score 0.0` — a floor would separate tensors that are indistinguishable rather than protect anything |
+| `attn.o` is the least sensitive type (median score 0.245) and is the only one whose group verdict is NVFP4 | Consistent with its `[3072, 3072]` shape and AR 1.0; nothing to act on |
 
-then inspect the score distribution in `moss.csv` before trusting the
-FP8/*KEEP* split.
+Split obtained with these values: **89 FP8 / 62 NVFP4 / 17 BF16**, of which 24
+FP8 and 8 BF16 come from the positional-group logic (`group_fp8_promotion`,
+`group_keep_preserved`) rather than from individual scores.
+
+### Size check
+
+With the **default two-tier build** (`--base-format nvfp4 --sensitive-format
+fp8`, i.e. no flags) the same recommendations land at **5.12 GiB** total
+(−48.6% vs the 9.47 GiB BF16 file), against **5.71 GiB** for a uniform MXFP8
+build. Uniform 8-bit collapses both tiers into one format, so the FP8/NVFP4
+distinction only survives there as the 17 BF16 exclusions.

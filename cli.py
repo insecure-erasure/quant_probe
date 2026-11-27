@@ -49,7 +49,7 @@ Default thresholds are calibrated per model:
   zimage - calibrated empirically from Z-Image Turbo score distribution
   ernie  - cloned from Z-Image defaults (not yet recalibrated)
   qwen21 - cloned from Z-Image defaults (not yet recalibrated)
-  moss   - cloned from Z-Image defaults (not yet recalibrated)
+  moss   - verified on MOSS-Image SFT score distribution (values kept)
 """,
     )
     parser.add_argument("model_path", type=str,

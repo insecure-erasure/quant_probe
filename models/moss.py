@@ -25,8 +25,9 @@ No refiner sub-graphs of the Z-Image kind: the two text_embedder.blocks are
 treated as high-precision globals, matching what Comfy-Org keeps in BF16 in
 their own int8_convrot build of this checkpoint.
 
-Calibrated defaults are cloned from Z-Image (same single-stream DiT lineage)
-and have NOT been recalibrated for MOSS-Image.
+Calibrated defaults were verified against the SFT release's score distribution
+(168 tensors) and kept at the Z-Image values -- nothing needed to change.  See
+doc/moss-image.md section 7 for the measured evidence.
 """
 
 import re
@@ -84,9 +85,22 @@ _HIGHPREC_EXCLUDED = [
 ]
 
 # ---------------------------------------------------------------------------
-# Calibrated defaults (cloned from Z-Image — not yet recalibrated)
+# Calibrated defaults
 # ---------------------------------------------------------------------------
-
+# Verified on the SFT release (moss.csv, 168 tensors).  The Z-Image values
+# survived unchanged:
+#   - scores span 0.19-0.90 with 61% of the mass below 0.35 and no valley above
+#     it (the largest gap anywhere in the distribution is 0.07, at 0.74 -> 0.81),
+#     so the 50th-percentile cut (0.304) stays neutral rather than tuned;
+#   - fp8_min_score 0.0: there is no low cluster an artificial floor would
+#     usefully block -- the 12 tensors within 0.015 of the FP8 threshold are
+#     indistinguishable either way;
+#   - min_group_spread 0.20: measured positional spreads are 0.25 (ffn.down),
+#     0.26 (attn.o), 0.42 (attn.qkv) and 0.47 (ffn.up_gate).  The filter never
+#     fires on this model, but it sits close enough to the two flat layer types
+#     to catch a genuinely position-invariant one;
+#   - kurtosis_keep 8.0: catches exactly the three extreme tensors (8.5, 10.5 and
+#     21.2); the next highest is 4.97, so the floor is not over-reaching.
 _DEFAULT_ARGS = {
     "fp8_percentile":   50.0,
     "keep_percentile":  90.0,

@@ -236,14 +236,20 @@ Two additional guards override the score:
 
 | Parameter | Wan 2.1 | Wan 2.2 | Z-Image | ERNIE | Qwen-Image 2.1 | MOSS-Image |
 |---|---|---|---|---|---|---|
-| `fp8-percentile` | 75.0 | 50.0* | 50.0 | 50.0* | 50.0* | 50.0* |
-| `keep-percentile` | 90.0 | 90.0* | 90.0 | 90.0* | 90.0* | 90.0* |
-| `kurtosis-keep` | 8.0 | 8.0* | 8.0 | 8.0* | 8.0* | 8.0* |
-| `fp8-min-score` | 0.50 | 0.50* | 0.0 | 0.0* | 0.0* | 0.0* |
-| `min-group-spread` | 0.06 | 0.06* | 0.20 | 0.20* | 0.20* | 0.20* |
+| `fp8-percentile` | 75.0 | 50.0* | 50.0 | 50.0* | 50.0* | 50.0 |
+| `keep-percentile` | 90.0 | 90.0* | 90.0 | 90.0* | 90.0* | 90.0 |
+| `kurtosis-keep` | 8.0 | 8.0* | 8.0 | 8.0* | 8.0* | 8.0 |
+| `fp8-min-score` | 0.50 | 0.50* | 0.0 | 0.0* | 0.0* | 0.0 |
+| `min-group-spread` | 0.06 | 0.06* | 0.20 | 0.20* | 0.20* | 0.20 |
 
 \* Wan 2.2 fp8_percentile set to 50 (empirical); other defaults cloned from Wan 2.1 — not yet recalibrated.
-\* ERNIE, Qwen-Image 2.1 and MOSS-Image defaults are cloned from Z-Image — not yet recalibrated.
+\* ERNIE and Qwen-Image 2.1 defaults are cloned from Z-Image — not yet recalibrated.
+
+MOSS-Image defaults are numerically identical to Z-Image's, but they were not
+inherited blindly: each one was checked against the SFT release's score
+distribution and kept (no valley to cut on, a spread floor that never fires, a
+kurtosis floor that catches exactly the three extreme tensors). The evidence is
+in `doc/moss-image.md` §7.
 
 See `doc/qwen-image-2.1.md` and `doc/moss-image.md` for the verified layer
 inventories of the Comfy-Org BF16 repacks, and why `--qwen` must not be used
