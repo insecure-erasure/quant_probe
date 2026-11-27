@@ -202,3 +202,39 @@ fp8`, i.e. no flags) the same recommendations land at **5.12 GiB** total
 (−48.6% vs the 9.47 GiB BF16 file), against **5.71 GiB** for a uniform MXFP8
 build. Uniform 8-bit collapses both tiers into one format, so the FP8/NVFP4
 distinction only survives there as the 17 BF16 exclusions.
+
+### Pure MXFP8 builds (no NVFP4)
+
+For an all-MXFP8 checkpoint there is no format between MXFP8 and BF16, so the
+sensitive tier has nowhere to go: `--base-format mxfp8` collapses the build and
+`--fp8-percentile` / `--min-group-spread` stop having any effect. The only
+precision lever left is **`--keep-percentile`**, which decides how much of the
+model stays in BF16:
+
+| `--keep-percentile` | BF16 tensors | Total | vs BF16 source |
+|---|---|---|---|
+| **90 (default)** | **17** | **5.71 GiB** | **−39.7%** |
+| 75 | 42 | 6.54 GiB | −31.0% |
+| 60 | 67 | 7.15 GiB | −24.5% |
+| 50 | 84 | 7.58 GiB | −20.0% |
+
+Numbers measured on the SFT run above. The default stays at 90 — the 17 tensors
+it protects are the pathological ones (kurtosis 21.2 / 10.5 / 8.5 plus the
+block-41 tail at score 0.90). `--keep-percentile 75` is the natural step up for
+a pure-MXFP8 build: it also keeps `qkv`/`o` of the first and last four blocks in
+BF16 for +0.8 GiB.
+
+This costs size but not precision: MXFP8 (E4M3 with an E8M0 scale every 32
+weights) is at least as accurate as the tensorwise FP8 those 89 layers would
+have received in an NVFP4 build. The FP8 tier exists to shield layers from
+NVFP4 — with no NVFP4 in the build there is nothing to shield them from.
+
+```bash
+# pure MXFP8, default protection (17 BF16 tensors, 5.71 GiB)
+quant-probe moss_image_sft_bf16.safetensors --model moss \
+    --base-format mxfp8 --spread-filter-exempt attn.qkv attn.o
+
+# same build, extra BF16 protection on the high-score tail (42 tensors, 6.54 GiB)
+quant-probe moss_image_sft_bf16.safetensors --model moss \
+    --base-format mxfp8 --keep-percentile 75 --spread-filter-exempt attn.qkv attn.o
+```
