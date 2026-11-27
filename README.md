@@ -58,6 +58,7 @@ NVFP4 and MXFP8 require Blackwell GPUs (SM ≥ 10.0, CUDA 13.0+, PyTorch 2.10+);
 | Z-Image base / Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
 | ERNIE Image Turbo | *(none — `--exclude-layers` is self-contained)* |
 | Qwen-Image 2.1 | *(none — `--exclude-layers` is self-contained; `--qwen` is v1-only)* |
+| MOSS-Image | *(none — `--exclude-layers` is self-contained; convert_to_quant has no MOSS preset)* |
 
 The `--exclude-layers` output from this script is compatible with both Z-Image flags.
 

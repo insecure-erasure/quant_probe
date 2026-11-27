@@ -87,6 +87,7 @@ quant-probe model.safetensors --model wan21 --lowram
 | Z-Image Turbo | `--zimage` (quantize refiners) or `--zimage_refiner` (keep refiners in BF16) |
 | ERNIE Image Turbo | *(none — `--exclude-layers` is self-contained)* |
 | Qwen-Image 2.1 | *(none — `--exclude-layers` is self-contained; `--qwen` is v1-only)* |
+| MOSS-Image | *(none — `--exclude-layers` is self-contained; convert_to_quant has no MOSS preset)* |
 
 The `--custom-layers` / `--exclude-layers` output from this script is compatible with both Z-Image flags.
 
