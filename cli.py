@@ -46,6 +46,8 @@ Default thresholds are calibrated per model:
   wan21  - calibrated from Wan 2.1 14B score distribution
   wan22  - cloned from Wan 2.1 defaults (not yet recalibrated)
   zimage - calibrated empirically from Z-Image Turbo score distribution
+  ernie  - cloned from Z-Image defaults (not yet recalibrated)
+  qwen21 - cloned from Z-Image defaults (not yet recalibrated)
 """,
     )
     parser.add_argument("model_path", type=str,

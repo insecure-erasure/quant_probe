@@ -1,6 +1,6 @@
 # quant_probe
 
-Quantization sensitivity analysis for safetensors diffusion models. Analyzes weight tensors to recommend per-layer quantization format (BF16 / FP8 / NVFP4) and generates ready-to-use parameters for [convert_to_quant](https://github.com/silveroxides/convert_to_quant).
+Quantization sensitivity analysis for safetensors diffusion models. Analyzes weight tensors to recommend a per-layer quantization format and generates ready-to-use parameters for [convert_to_quant](https://github.com/silveroxides/convert_to_quant).
 
 Supported architectures: **Wan 2.1**, **Wan 2.2**, **Z-Image Turbo**, **ERNIE Image Turbo** and **Qwen-Image 2.1**.
 
@@ -12,7 +12,9 @@ For each target layer, the script computes:
 - **Dynamic range** — wider range means harder to represent at low precision
 - **Aspect ratio** — shape-based proxy for quantization difficulty
 
-These metrics are combined into a score and bucketed into three recommendations: `*KEEP*` (BF16), `FP8`, or `NVFP4`. Thresholds are derived automatically from the model's own score distribution using configurable percentiles.
+These metrics are combined into a score and bucketed into three tiers: `*KEEP*` (BF16), a **sensitive** tier, and a **base** tier for everything else. Thresholds are derived automatically from the model's own score distribution using configurable percentiles.
+
+The two quantized tiers are mapped onto concrete formats by `--base-format` and `--sensitive-format`. The default is NVFP4 base with FP8 for the sensitive tier; MXFP8, INT8 and plain FP8 are also available, and a base that is already 8-bit collapses the build to a single uniform format.
 
 A **spread filter** suppresses per-group positional variance when the score spread across block positions is too low to be meaningful. For Z-Image, refiner sub-graphs (`context_refiner`, `noise_refiner`) bypass this filter entirely — they only have 2 blocks, which is insufficient for positional spread analysis.
 
@@ -28,13 +30,15 @@ quant-probe model.safetensors --model wan21 \
   --spread-filter-exempt cross_attn.k cross_attn.q self_attn.k self_attn.q
 ```
 
-The output includes a ready-to-use `ctq` command with `--custom-layers` and `--exclude-layers` parameters for NVFP4 quantization, plus metadata and ComfyUI flags.
+The output includes a ready-to-use `ctq` command with `--custom-layers` and `--exclude-layers` parameters, plus metadata and ComfyUI flags.
 
 ## Key options
 
 | Option | Default | Description |
 |---|---|---|
 | `--model` | required | Architecture: `wan21`, `wan22`, `zimage`, `ernie` or `qwen21` |
+| `--base-format` | `nvfp4` | Format for the least-sensitive tier: `nvfp4`, `mxfp8`, `int8` or `fp8` (emits no flag — FP8 is `ctq`'s default) |
+| `--sensitive-format` | derived | Format for the sensitive tier, emitted as `--custom-type`. Unset = FP8 when the base is `nvfp4`, otherwise the base itself (uniform build, no `--custom-layers` block) |
 | `--fp8-percentile` | model-specific | Score percentile threshold for FP8 |
 | `--keep-percentile` | 90.0 | Score percentile threshold for \*KEEP\* |
 | `--spread-filter-exempt` | none | Layer types that bypass the spread filter |
@@ -42,6 +46,8 @@ The output includes a ready-to-use `ctq` command with `--custom-layers` and `--e
 | `--csv` | none | Export per-tensor metrics to CSV |
 | `--lowram` | false | Avoid mmap-ing the full model file |
 | `--device` | auto | `cpu` or `cuda` |
+
+NVFP4 and MXFP8 require Blackwell GPUs (SM ≥ 10.0, CUDA 13.0+, PyTorch 2.10+); on Ada/Hopper use `--base-format int8` or `--base-format fp8`. The full CLI reference is in [`doc/README.md`](doc/README.md), with per-model layer inventories in [`doc/`](doc/).
 
 ## Compatibility with convert_to_quant
 

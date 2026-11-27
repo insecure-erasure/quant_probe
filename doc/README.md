@@ -100,6 +100,16 @@ The `--custom-layers` / `--exclude-layers` output from this script is compatible
 | `self_attn` | `k`, `v`, `q`, `o` |
 | `ffn` | `0`, `2` |
 
+### Wan 2.2
+
+Same `blocks.*` namespace as Wan 2.1, minus the image-conditioned cross-attention projections (`k_img`, `v_img`). Both MoE experts (high-noise / low-noise) share the identical layout, so a single config covers both.
+
+| Group | Layers |
+|---|---|
+| `cross_attn` | `k`, `v`, `q`, `o` |
+| `self_attn` | `k`, `v`, `q`, `o` |
+| `ffn` | `0`, `2` |
+
 ### Z-Image
 
 Main blocks (`layers.*`):
@@ -113,6 +123,28 @@ Main blocks (`layers.*`):
 Refiners (`context_refiner.*`, `noise_refiner.*`): same layer structure as main blocks, analyzed flat without positional classification.
 
 The following layers are intentionally excluded from analysis because they receive special high-precision treatment in `convert_to_quant` (`--zimage` / `--zimage_refiner`): `x_embedder`, `clip_text_pooled_proj`, `final_layer`, `cap_embedder.1`, `adaLN_modulation` (global), `t_embedder`, `time_text_embed`.
+
+### ERNIE Image Turbo
+
+Blocks (`layers.*`), 36 blocks. No cross-attention and no refiners — text conditioning is injected through `adaLN_modulation` + `text_proj`.
+
+| Group | Layers |
+|---|---|
+| `self_attention` | `q`, `k`, `v`, `o` |
+| `ffn` | `gate`, `up`, `down` |
+
+Excluded from analysis (kept BF16): `x_embedder.proj`, `time_embedding.linear_1` / `linear_2`, `text_proj`, `adaLN_modulation.1`, `final_norm.linear`, `final_linear`, plus the 1D norms (`adaLN_sa_ln`, `adaLN_mlp_ln`, `self_attention.norm_q` / `norm_k`). See [`ernie-image-turbo.md`](ernie-image-turbo.md).
+
+### Qwen-Image 2.1
+
+Blocks (`transformer_blocks.0` … `.31`), single-stream DiT. No refiners.
+
+| Group | Layers |
+|---|---|
+| `attn` | `q`, `k`, `v`, `o` |
+| `img_mlp` | `gate_up` (ComfyUI fused) or `gate` + `up` (diffusers naming), `out` |
+
+Excluded from analysis (kept BF16): the eight global 2D matrices — `img_in`, `txt_in.in_layer`, `txt_in.out_layer`, `time_text_embed.timestep_embedder.linear_1` / `linear_2`, `modulation.1`, `norm_out.linear`, `proj_out` — plus the 1D norms. See [`qwen-image-2.1.md`](qwen-image-2.1.md) for the verified 265-key inventory and why `--qwen` must not be used with it.
 
 ## How recommendations are assigned
 
